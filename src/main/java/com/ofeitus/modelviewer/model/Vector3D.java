@@ -37,6 +37,10 @@ public class Vector3D {
         );
     }
 
+    public static double scalarProduct(Vector3D a, Vector3D b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
     public static Vector3D add(Vector3D v1, Vector3D v2) {
         return new Vector3D(
                 v1.x + v2.x,
@@ -46,10 +50,11 @@ public class Vector3D {
     }
 
     public Vector3D multiplyByScalar(double s) {
-        this.x *= s;
-        this.y *= s;
-        this.z *= s;
-        return this;
+        return new Vector3D(
+                this.x * s,
+                this.y * s,
+                this.z * s
+        );
     }
 
     public double getLength() {
