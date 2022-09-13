@@ -64,4 +64,8 @@ public class Bresenham {
             g.drawLine (x, y, x, y);
         }
     }
+
+    public static void drawTriangle() {
+
+    }
 }
