@@ -1,6 +1,6 @@
 package com.ofeitus.modelviewer;
 
-import com.ofeitus.modelviewer.graphics.Bresenham;
+import com.ofeitus.modelviewer.graphics.Drawer;
 import com.ofeitus.modelviewer.model.*;
 
 import javax.swing.*;
@@ -43,7 +43,7 @@ public class Game implements Runnable {
         ObjectLoader objectLoader = new ObjectLoader();
 
         try {
-            objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\model\\source\\Guitar.obj"));
+            objects.add(objectLoader.loadObject("/Users/hermanshpryhau/IdeaProjects/3DModel/Guitar.obj"));
             Object3D grid = new Object3D("Grid");
             PolygonGroup polygonGroup = new PolygonGroup("grid");
             for (int i = -10; i <= 10; i++) {
@@ -198,29 +198,33 @@ public class Game implements Runnable {
                     };
                 }
 
-                Bresenham.drawLine(
+                Drawer.drawLine(
                         (int) vertices[0][0],
                         (int) vertices[0][1],
                         (int) vertices[1][0],
                         (int) vertices[1][1],
                         g
                 );
-                Bresenham.drawLine(
+                Drawer.drawLine(
                         (int) vertices[1][0],
                         (int) vertices[1][1],
                         (int) vertices[2][0],
                         (int) vertices[2][1],
                         g
                 );
-                Bresenham.drawLine(
+                Drawer.drawLine(
                         (int) vertices[2][0],
                         (int) vertices[2][1],
                         (int) vertices[0][0],
                         (int) vertices[0][1],
                         g
                 );
-                //g.drawString("eye " + eye.x + " " + eye.y + " " + eye.z, 10, 600-60);
-                //g.drawString("target " + target.x + " " + target.y + " " + target.z, 10, 600-40);
+                Drawer.drawPolygon(
+                        (int) vertices[0][0], (int) vertices[0][1],
+                        (int) vertices[1][0], (int) vertices[1][1],
+                        (int) vertices[2][0], (int) vertices[2][1],
+                        g
+                );
             }
         }
     }
