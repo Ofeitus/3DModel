@@ -1,6 +1,6 @@
 package com.ofeitus.modelviewer;
 
-import com.ofeitus.modelviewer.graphics.Bresenham;
+import com.ofeitus.modelviewer.graphics.Drawer;
 import com.ofeitus.modelviewer.model.*;
 
 import javax.swing.*;
@@ -197,9 +197,33 @@ public class Game implements Runnable {
                     };
                 }
 
-                drawLine(g, lines, vertices[0][0], vertices[0][1], vertices[1][0], vertices[1][1]);
-                drawLine(g, lines, vertices[1][0], vertices[1][1], vertices[2][0], vertices[2][1]);
-                drawLine(g, lines, vertices[2][0], vertices[2][1], vertices[0][0], vertices[0][1]);
+                Drawer.drawLine(
+                        (int) vertices[0][0],
+                        (int) vertices[0][1],
+                        (int) vertices[1][0],
+                        (int) vertices[1][1],
+                        g
+                );
+                Drawer.drawLine(
+                        (int) vertices[1][0],
+                        (int) vertices[1][1],
+                        (int) vertices[2][0],
+                        (int) vertices[2][1],
+                        g
+                );
+                Drawer.drawLine(
+                        (int) vertices[2][0],
+                        (int) vertices[2][1],
+                        (int) vertices[0][0],
+                        (int) vertices[0][1],
+                        g
+                );
+                Drawer.drawPolygon(
+                        (int) vertices[0][0], (int) vertices[0][1],
+                        (int) vertices[1][0], (int) vertices[1][1],
+                        (int) vertices[2][0], (int) vertices[2][1],
+                        g
+                );
             }
         }
 
