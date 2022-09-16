@@ -25,15 +25,23 @@ public class Object3D {
         return polygonGroups;
     }
 
+    public int countPolygons() {
+        int totalPolygons = 0;
+        for (PolygonGroup polygonGroup : polygonGroups) {
+            totalPolygons += polygonGroup.getPolygons().size();
+        }
+        return totalPolygons;
+    }
+
     @Override
     public String toString() {
         String result = "Object '" + name + "'\n" + polygonGroups.size() + " polygon groups:" + "\n";
-        int totalVertices = 0;
+        int totalPolygons = 0;
         for (PolygonGroup polygonGroup : polygonGroups) {
-            result += polygonGroup.getName() + " - " + polygonGroup.getPolygons().size() + " vertices\n";
-            totalVertices += polygonGroup.getPolygons().size();
+            result += polygonGroup.getName() + " - " + polygonGroup.getPolygons().size() + " polygons\n";
+            totalPolygons += polygonGroup.getPolygons().size();
         }
-        result += totalVertices + " vertices total";
+        result += totalPolygons + " polygons total\n";
         return result;
     }
 }

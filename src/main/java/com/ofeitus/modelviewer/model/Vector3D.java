@@ -1,8 +1,5 @@
 package com.ofeitus.modelviewer.model;
 
-import static java.lang.Math.cos;
-import static java.lang.Math.sin;
-
 public class Vector3D {
     public double x;
     public double y;
@@ -67,17 +64,5 @@ public class Vector3D {
         this.y /= length;
         this.z /= length;
         return this;
-    }
-
-    public Vector3D rotate(double x, double y, double z) {
-        x = Math.PI / 180 * x;
-        y = Math.PI / 180 * y;
-        z = Math.PI / 180 * z;
-        return new Vector3D(
-                (cos(y) * cos(z)) * this.x + (cos(z) * sin(y) * sin(x) - cos(x) * sin(z)) * this.y + (cos(x) * cos(z) * sin(y) + sin(x) * sin(z)) * this.z + 0 * this.w,
-                (cos(y) * sin(z)) * this.x + (cos(x) * cos(z) + sin(y) * sin(x) * sin(z)) * this.y + (cos(x) * sin(y) * sin(z) - cos(z) * sin(x)) * this.z + 0 * this.w,
-                (-sin(y)) * this.x + (cos(y) * sin(x)) * this.y + (cos(y) * cos(x)) * this.z + 0 * this.w,
-                0 * this.x + 0 * this.y + 0 * this.z + 1 * this.w
-        );
     }
 }
