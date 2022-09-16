@@ -4,7 +4,7 @@ import java.awt.*;
 
 public class Bresenham {
     private static int sign (int x) {
-        return (x > 0) ? 1 : (x < 0) ? -1 : 0;
+        return Integer.compare(x, 0);
     }
 
     public static void drawLine(int xStart, int yStart, int xEnd, int yEnd, Graphics g) {

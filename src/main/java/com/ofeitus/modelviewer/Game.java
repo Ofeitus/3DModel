@@ -8,7 +8,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
 
 import static java.lang.Math.cos;
@@ -30,6 +30,7 @@ public class Game implements Runnable {
     double yaw = -90.0;
     double pitch = 0.0;
     double fov = 90.0;
+    private int globalFPS;
 
     public Game() {
         ObjectLoader objectLoader = new ObjectLoader();
@@ -145,43 +146,45 @@ public class Game implements Runnable {
         drawObject(g, objects.get(0), -90, 120, 0, 45, -90, 60, 1);
         drawObject(g, objects.get(1), 0, 60, -10, 0, 0, 0, 3);
         drawObject(g, objects.get(2), 0, 0, 0, 0, 0, 0, 2);
-
         return bufferedImage;
     }
 
     private void drawObject(Graphics g, Object3D object, double translateX, double translateY, double translateZ, double rotateX, double rotateY, double rotateZ, double scale) {
+        Set<Line2D> lines = new HashSet<>();
+
+        double[][] matrix = Matrix.getRotationX(0);
+        matrix = Matrix.multiply(
+                Matrix.getRotation(rotateX, rotateY, rotateZ),
+                matrix
+        );
+        matrix = Matrix.multiply(
+                Matrix.getScale(scale, scale, scale),
+                matrix
+        );
+        matrix = Matrix.multiply(
+                Matrix.getTranslation(translateX, translateY, translateZ),
+                matrix
+        );
+        matrix = Matrix.multiply(
+                Matrix.getLookAt(
+                        eye,
+                        Vector3D.add(eye, target),
+                        up
+                ),
+                matrix
+        );
+
+        matrix = Matrix.multiply(
+                Matrix.getPerspectiveProjection(
+                        fov, SCREEN_WIDTH / SCREEN_HEIGHT,
+                        -1.0, -1000.0),
+                matrix
+        );
+
         for (PolygonGroup polygonGroup : object.getPolygonGroups()) {
             for (Polygon3D polygon : polygonGroup.getPolygons()) {
                 List<Vector3D> vectors = polygon.getVertices();
 
-                double[][] matrix = Matrix.getRotationX(0);
-                matrix = Matrix.multiply(
-                        Matrix.getRotation(rotateX, rotateY, rotateZ),
-                        matrix
-                );
-                matrix = Matrix.multiply(
-                        Matrix.getScale(scale, scale, scale),
-                        matrix
-                );
-                matrix = Matrix.multiply(
-                        Matrix.getTranslation(translateX, translateY, translateZ),
-                        matrix
-                );
-                matrix = Matrix.multiply(
-                        Matrix.getLookAt(
-                                eye,
-                                Vector3D.add(eye, target),
-                                up
-                        ),
-                        matrix
-                );
-
-                matrix = Matrix.multiply(
-                        Matrix.getPerspectiveProjection(
-                                fov, SCREEN_WIDTH / SCREEN_HEIGHT,
-                                -1.0, -1000.0),
-                        matrix
-                );
                 double[][] vertices = new double[3][2];
                 for (int i = 0; i < 3; i++) {
                     Vector3D vertex = Matrix.multiplyVector(
@@ -194,28 +197,21 @@ public class Game implements Runnable {
                     };
                 }
 
-                Bresenham.drawLine(
-                        (int) vertices[0][0],
-                        (int) vertices[0][1],
-                        (int) vertices[1][0],
-                        (int) vertices[1][1],
-                        g
-                );
-                Bresenham.drawLine(
-                        (int) vertices[1][0],
-                        (int) vertices[1][1],
-                        (int) vertices[2][0],
-                        (int) vertices[2][1],
-                        g
-                );
-                Bresenham.drawLine(
-                        (int) vertices[2][0],
-                        (int) vertices[2][1],
-                        (int) vertices[0][0],
-                        (int) vertices[0][1],
-                        g
-                );
+                drawLine(g, lines, vertices[0][0], vertices[0][1], vertices[1][0], vertices[1][1]);
+                drawLine(g, lines, vertices[1][0], vertices[1][1], vertices[2][0], vertices[2][1]);
+                drawLine(g, lines, vertices[2][0], vertices[2][1], vertices[0][0], vertices[0][1]);
             }
+        }
+
+        g.drawString("FPS: " + globalFPS, 10, (int) SCREEN_HEIGHT - 10);
+    }
+
+    public void drawLine(Graphics g, Set<Line2D> lines, double x1, double y1, double x2, double y2) {
+        Line2D line = new Line2D(x1, y1, x2, y2);
+
+        if (!lines.contains(line)) {
+            Bresenham.drawLine((int) x1, (int) y1, (int) x2, (int) y2, g);
+            lines.add(line);
         }
     }
 
@@ -244,6 +240,8 @@ public class Game implements Runnable {
     public void run() {
         long lastLoopTime = System.nanoTime();
         double delta;
+        long lastFpsTime = 0;
+        int fps = 0;
         int targetFps = 60;
         long optimalTime = 1000000000 / targetFps;
 
@@ -252,6 +250,16 @@ public class Game implements Runnable {
             long updateLength = now - lastLoopTime;
             lastLoopTime = now;
             delta = updateLength / ((double)optimalTime);
+
+            lastFpsTime += updateLength;
+            fps++;
+
+            if (lastFpsTime >= 1000000000)
+            {
+                globalFPS = fps;
+                lastFpsTime = 0;
+                fps = 0;
+            }
 
             // draw
             moveCamera(delta);
