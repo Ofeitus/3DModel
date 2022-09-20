@@ -3,45 +3,57 @@ package com.ofeitus.modelviewer;
 import com.ofeitus.modelviewer.model.Object3D;
 import com.ofeitus.modelviewer.model.Polygon3D;
 import com.ofeitus.modelviewer.model.PolygonGroup;
-import com.ofeitus.modelviewer.model.Vector3D;
+import com.ofeitus.modelviewer.model.Vertex3D;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
 
 public class ObjectLoader {
-    protected List<Vector3D> vertices;
+    protected List<double[]> vertices;
+    protected List<double[]> textures;
+    protected List<double[]> normals;
     protected ObjLineParser parser;
     private Object3D object;
     private PolygonGroup currentGroup;
 
-    /**
-     Creates a new ObjectLoader.
-     */
     public ObjectLoader() {
         vertices = new ArrayList<>();
+        textures = new ArrayList<>();
+        normals = new ArrayList<>();
         parser = new ObjLineParser();
     }
 
-    /**
-     Loads an OBJ file as a PolygonGroup.
-     */
-    public Object3D loadObject(String filename) throws IOException
-    {
-        File file = new File(filename);
-        object = new Object3D(file.getName());
+    public Object3D loadObject(String model, String texture, String normalMap, String reflectionMap) throws IOException {
+        File modelFile = new File(model);
+        BufferedImage textureFile, normalMapFile, reflectionMapFile;
+        if (texture.equals("")) {
+            textureFile = null;
+        } else {
+            textureFile = ImageIO.read(new File(texture));
+        }
+        if (normalMap.equals("")) {
+            normalMapFile = null;
+        } else {
+            normalMapFile = ImageIO.read(new File(normalMap));
+        }
+        if (reflectionMap.equals("")) {
+            reflectionMapFile = null;
+        } else {
+            reflectionMapFile = ImageIO.read(new File(reflectionMap));
+        }
+        object = new Object3D(modelFile.getName(), textureFile, normalMapFile, reflectionMapFile);
         vertices.clear();
-        currentGroup = null;
-        parseFile(filename);
+        textures.clear();
+        normals.clear();
+        currentGroup = new PolygonGroup("Default group");
+        object.addPolygonGroup(currentGroup);
+        parseFile(model);
         return object;
     }
 
-    /**
-     Gets a Vector3D from the list of vectors in the file.
-     Negative indices count from the end of the list, positive
-     indices count from the beginning. 1 is the first index,
-     -1 is the last. 0 is invalid and throws an exception.
-     */
-    protected Vector3D getVector(String indexStr) {
+    protected double[] getVector(String indexStr) {
         int index = Integer.parseInt(indexStr);
         if (index < 0) {
             index = vertices.size() + index + 1;
@@ -49,12 +61,23 @@ public class ObjectLoader {
         return vertices.get(index-1);
     }
 
-    /**
-     Parses an OBJ (ends with ".obj") or MTL file (ends with
-     ".mtl").
-     */
-    protected void parseFile(String filename) throws IOException
-    {
+    protected double[] getTexture(String indexStr) {
+        int index = Integer.parseInt(indexStr);
+        if (index < 0) {
+            index = textures.size() + index + 1;
+        }
+        return textures.get(index-1);
+    }
+
+    protected double[] getNormal(String indexStr) {
+        int index = Integer.parseInt(indexStr);
+        if (index < 0) {
+            index = normals.size() + index + 1;
+        }
+        return normals.get(index-1);
+    }
+
+    protected void parseFile(String filename) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             // parse every line in the file
             String line = reader.readLine();
@@ -80,22 +103,41 @@ public class ObjectLoader {
             switch (command) {
                 case "v":
                     // create a new vertex
-                    vertices.add(new Vector3D(
+                    vertices.add(new double[]{
                             Double.parseDouble(tokenizer.nextToken()),
                             Double.parseDouble(tokenizer.nextToken()),
-                            Double.parseDouble(tokenizer.nextToken())));
+                            Double.parseDouble(tokenizer.nextToken()),
+                            1.0});
+                    break;
+                case "vt":
+                    // create a new vertex
+                    textures.add(new double[]{
+                            Double.parseDouble(tokenizer.nextToken()),
+                            Double.parseDouble(tokenizer.nextToken()),
+                            0.0,
+                            0.0});
+                    break;
+                case "vn":
+                    // create a new vertex
+                    normals.add(new double[]{
+                            Double.parseDouble(tokenizer.nextToken()),
+                            Double.parseDouble(tokenizer.nextToken()),
+                            Double.parseDouble(tokenizer.nextToken()),
+                            0.0});
                     break;
                 case "f":
                     // create a new face (flat, convex polygon)
-                    List<Vector3D> currVertices = new ArrayList<>();
+                    List<Vertex3D> currVertices = new ArrayList<>();
                     while (tokenizer.hasMoreTokens()) {
                         String indexStr = tokenizer.nextToken();
                         // ignore texture and normal coords
-                        int endIndex = indexStr.indexOf('/');
-                        if (endIndex != -1) {
-                            indexStr = indexStr.substring(0, endIndex);
-                        }
-                        currVertices.add(getVector(indexStr));
+                        String[] indices = indexStr.split("/");
+                        Vertex3D vertex = new Vertex3D(
+                                getVector(indices[0]),
+                                getTexture(indices[1]),
+                                getNormal(indices[2])
+                        );
+                        currVertices.add(vertex);
                     }
                     // create textured polygon
                     Polygon3D poly = new Polygon3D(currVertices);

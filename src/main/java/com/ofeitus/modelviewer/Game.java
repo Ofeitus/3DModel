@@ -1,59 +1,100 @@
 package com.ofeitus.modelviewer;
 
+import com.ofeitus.modelviewer.constant.Constant;
+import com.ofeitus.modelviewer.graphics.DrawMode;
 import com.ofeitus.modelviewer.graphics.Drawer;
+import com.ofeitus.modelviewer.graphics.Light;
+import com.ofeitus.modelviewer.graphics.Scene;
 import com.ofeitus.modelviewer.model.*;
+import com.ofeitus.modelviewer.util.Matrix4D;
+import com.ofeitus.modelviewer.util.Vector4D;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-import static java.lang.Math.cos;
-import static java.lang.Math.sin;
-
 public class Game implements Runnable {
     private final List<Object3D> objects = new ArrayList<>();
-    private Vector3D eye = new Vector3D(0, 0, 300);
-    private Vector3D target = new Vector3D(0, 0, -1);
-    private final Vector3D up = new Vector3D(0, 1, 0);
-    private final double SCREEN_WIDTH = 1280.0;
-    private final double SCREEN_HEIGHT = 720.0;
+    private Scene scene = new Scene(
+            new Camera(
+                new double[]{50, 100, 300, 1},
+                new double[]{0, 0, -1, 1},
+                new double[]{0, 1, 0, 1}
+            ),
+            new Light(
+                new double[]{1, 1, 1, 1},
+                new double[]{100, 50, 100, 1},
+                0.1, 0.6, 0.8, 16
+            ),
+            new double[Constant.SCREEN_HEIGHT][Constant.SCREEN_WIDTH]
+    );
     JFrame frame;
+    // Background
+    BufferedImage background;
     boolean[] keys = new boolean[1024];
-    public boolean running = false;
-    boolean firstMouse = true;
-    double lastX = SCREEN_WIDTH / 2;
-    double lastY = SCREEN_HEIGHT / 2;
-    double yaw = -90.0;
-    double pitch = 0.0;
-    double fov = 90.0;
-    private int globalFPS;
+    private boolean running = false;
 
-    public Game() {
+    public Game() throws AWTException {
+        // Invisible cursor
+        BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new Point(0, 0), "blank cursor");
+
+
+        // Load objects
         ObjectLoader objectLoader = new ObjectLoader();
-
         try {
-            objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\guitar\\source\\Guitar.obj"));
-            objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\amp\\source\\amp.obj"));
-            Object3D grid = new Object3D("Grid");
+            background = ImageIO.read(new File("C:\\Users\\ofeitus\\Desktop\\labs\\models\\background.jpg"));
+            // Grid
+            Object3D grid = new Object3D("Grid", null, null, null);
             PolygonGroup polygonGroup = new PolygonGroup("grid");
             for (int i = -10; i <= 10; i++) {
-                List<Vector3D> vertices = new ArrayList<>();
-                vertices.add(new Vector3D(i * 10.0, 0, -100));
-                vertices.add(new Vector3D(i * 10.0, 0,  100));
-                vertices.add(new Vector3D(i * 10.0, 0,  100));
-                polygonGroup.addPolygon(new Polygon3D(vertices));
+                List<Vertex3D> vertices = new ArrayList<>();
+                vertices.add(new Vertex3D(i * 10.0, 0, -100));
+                vertices.add(new Vertex3D(i * 10.0, 0, 100));
+                vertices.add(new Vertex3D(i * 10.0, 0, 100));
+                Polygon3D polygon = new Polygon3D(vertices);
+                polygon.setNormal(new double[]{0, 1, 0, 0});
+                polygonGroup.addPolygon(polygon);
                 vertices = new ArrayList<>();
-                vertices.add(new Vector3D(-100, 0, i * 10.0));
-                vertices.add(new Vector3D( 100, 0, i * 10.0));
-                vertices.add(new Vector3D( 100, 0, i * 10.0));
-                polygonGroup.addPolygon(new Polygon3D(vertices));
+                vertices.add(new Vertex3D(-100, 0, i * 10.0));
+                vertices.add(new Vertex3D( 100, 0, i * 10.0));
+                vertices.add(new Vertex3D( 100, 0, i * 10.0));
+                polygon = new Polygon3D(vertices);
+                polygon.setNormal(new double[]{0, 1, 0, 0});
+                polygonGroup.addPolygon(polygon);
             }
             grid.addPolygonGroup(polygonGroup);
             objects.add(grid);
+
+            objects.add(objectLoader.loadObject(
+                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\guitar\\source\\cube.obj",
+                    "",
+                    "",
+                    ""));
+            objects.add(objectLoader.loadObject(
+                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\guitar\\source\\Guitar.obj",
+                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\guitar\\textures\\Guitar_Base_color.png",
+                    "",
+                    ""
+            ));
+            objects.add(objectLoader.loadObject(
+                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\amp\\source\\amp.obj",
+                    "",
+                    "",
+                    ""
+            ));
+            objects.add(objectLoader.loadObject(
+                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\skull\\source\\skull.obj",
+                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\skull\\textures\\Rosa_material_albedo.jpeg",
+                    "",
+                    ""
+            ));
             for (Object3D object : objects) {
                 System.out.println(object);
             }
@@ -69,9 +110,12 @@ public class Game implements Runnable {
             }
         };
 
+        frame.setCursor(blankCursor);
+
         frame.addKeyListener(new KeyListener() {
             @Override
             public void keyTyped(KeyEvent e) {
+                // Do nothing
             }
 
             @Override
@@ -88,155 +132,158 @@ public class Game implements Runnable {
         frame.addMouseMotionListener(new MouseMotionListener() {
             @Override
             public void mouseDragged(MouseEvent e) {
-
+                // Do nothing
             }
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                double xpos = e.getX();
-                double ypos = e.getY();
-
-                double xoffset = xpos - lastX;
-                double yoffset = lastY - ypos;
-                lastX = xpos;
-                lastY = ypos;
-
-                double sensitivity = 0.4;
-                xoffset *= sensitivity;
-                yoffset *= sensitivity;
-
-                yaw   += xoffset;
-                pitch += yoffset;
-
-                if (pitch > 89.0)
-                    pitch = 89.0;
-                if (pitch < -89.0)
-                    pitch = -89.0;
-
-                target = new Vector3D(
-                        cos(Math.toRadians(yaw)) * cos(Math.toRadians(pitch)),
-                        sin(Math.toRadians(pitch)),
-                        sin(Math.toRadians(yaw)) * cos(Math.toRadians(pitch))
-                ).normalize();
+                scene.camera.setViewByMouse(frame.getLocationOnScreen(), e.getX(), e.getY());
             }
         });
 
-        frame.addMouseWheelListener(new MouseWheelListener() {
-            @Override
-            public void mouseWheelMoved(MouseWheelEvent e) {
-                if (fov >= 1.0 && fov <= 90.0)
-                    fov += e.getPreciseWheelRotation() * 2;
-                if (fov <= 1.0)
-                    fov = 1.0;
-                if (fov >= 90.0)
-                    fov = 90.0;
-            }
+        frame.addMouseWheelListener(e -> {
+            if (scene.camera.fov >= 1.0 && scene.camera.fov <= 90.0)
+                scene.camera.fov += e.getPreciseWheelRotation() * 2;
+            if (scene.camera.fov <= 1.0)
+                scene.camera.fov = 1.0;
+            if (scene.camera.fov >= 90.0)
+                scene.camera.fov = 90.0;
         });
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize((int)SCREEN_WIDTH, (int)SCREEN_HEIGHT);
+        frame.setSize(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT);
         frame.setResizable(false);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
 
     private Image createImage() {
-        BufferedImage bufferedImage = new BufferedImage((int)SCREEN_WIDTH, (int)SCREEN_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        for (int i = 0; i < Constant.SCREEN_HEIGHT; i++) {
+            for (int j = 0; j < Constant.SCREEN_WIDTH; j++) {
+                scene.zBuffer[i][j] = 0;
+            }
+        }
+        BufferedImage bufferedImage = new BufferedImage(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, BufferedImage.TYPE_INT_RGB);
         Graphics g = bufferedImage.getGraphics();
-        drawObject(g, objects.get(0), -90, 120, 0, 45, -90, 60, 1);
-        drawObject(g, objects.get(1), 0, 60, -10, 0, 0, 0, 3);
-        drawObject(g, objects.get(2), 0, 0, 0, 0, 0, 0, 2);
+        g.drawImage(background, 0, 0, Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, null, null);
+        drawObject(bufferedImage, objects.get(0), new DrawMode(
+                false,
+                1,
+                false,
+                false,
+                true
+        ), 0, 0, 0, 0, 0, 0, 1);
+        //drawObject(g, objects.get(3), DrawMode.WIREFRAME, 42, 60, -10, 0, 0, 0, 3);
+        //drawObject(g, objects.get(2), DrawMode.LAMBERTIAN_LIGHT, -50, 120, 0, 45, -90, 60, 1);
+        drawObject(bufferedImage, objects.get(4), new DrawMode(
+                false,
+                0,
+                true,
+                false,
+                false
+        ), 50, 150, 0, 30, 0, 0, 50);
+        drawObject(bufferedImage, objects.get(4), new DrawMode(
+                false,
+                1,
+                true,
+                false,
+                false
+        ), -50, 50, 0, 30, 0, 0, 50);
+        drawObject(bufferedImage, objects.get(4), new DrawMode(
+                false,
+                1,
+                true,
+                true,
+                false
+        ), 50, 50, 0, 30, 0, 0, 50);
+        drawObject(bufferedImage, objects.get(4), new DrawMode(
+                true,
+                1,
+                false,
+                false,
+                false
+        ), -50, 150, 0, 30, 0, 0, 50);
+
         return bufferedImage;
     }
 
-    private void drawObject(Graphics g, Object3D object, double translateX, double translateY, double translateZ, double rotateX, double rotateY, double rotateZ, double scale) {
-        Set<Line2D> lines = new HashSet<>();
-
-        double[][] matrix = Matrix.getRotationX(0);
-        matrix = Matrix.multiply(
-                Matrix.getRotation(rotateX, rotateY, rotateZ),
+    private void drawObject(BufferedImage image, Object3D object, DrawMode drawMode, double translateX, double translateY, double translateZ, double rotateX, double rotateY, double rotateZ, double scale) {
+        double[][] matrix = Matrix4D.getIdentity();
+        final double[][] transformMatrix, viewProjectionMatrix;
+        matrix = Matrix4D.multiply(
+                Matrix4D.getRotation(rotateX, rotateY, rotateZ),
                 matrix
         );
-        matrix = Matrix.multiply(
-                Matrix.getScale(scale, scale, scale),
+        matrix = Matrix4D.multiply(
+                Matrix4D.getScale(scale, scale, scale),
                 matrix
         );
-        matrix = Matrix.multiply(
-                Matrix.getTranslation(translateX, translateY, translateZ),
+        matrix = Matrix4D.multiply(
+                Matrix4D.getTranslation(translateX, translateY, translateZ),
                 matrix
         );
-        matrix = Matrix.multiply(
-                Matrix.getLookAt(
-                        eye,
-                        Vector3D.add(eye, target),
-                        up
+        transformMatrix = Matrix4D.copy(matrix);
+        matrix = Matrix4D.multiply(
+                Matrix4D.getTranslation(-scene.camera.eye[0], -scene.camera.eye[1], -scene.camera.eye[2]),
+                matrix
+        );
+        matrix = Matrix4D.multiply(
+                Matrix4D.getLookAt(
+                        new double[]{0, 0, 0, 1},
+                        scene.camera.target,
+                        scene.camera.up
                 ),
                 matrix
         );
 
-        matrix = Matrix.multiply(
-                Matrix.getPerspectiveProjection(
-                        fov, SCREEN_WIDTH / SCREEN_HEIGHT,
-                        -1.0, -1000.0),
+        matrix = Matrix4D.multiply(
+                Matrix4D.getPerspectiveProjection(
+                        scene.camera.fov,
+                        (double)Constant.SCREEN_WIDTH / Constant.SCREEN_HEIGHT,
+                        scene.camera.zNear,
+                        scene.camera.zFar),
                 matrix
         );
+        viewProjectionMatrix = matrix;
 
         for (PolygonGroup polygonGroup : object.getPolygonGroups()) {
-            for (Polygon3D polygon : polygonGroup.getPolygons()) {
-                List<Vector3D> vectors = polygon.getVertices();
+            //for (Polygon3D polygon : polygonGroup.getPolygons()) {
+            polygonGroup.getPolygons().parallelStream().forEach(polygon -> {
+                List<Vertex3D> vectors = polygon.getVertices();
 
-                double[][] vertices = new double[3][2];
+                Vertex3D[] vertices = new Vertex3D[3];
                 for (int i = 0; i < 3; i++) {
-                    Vector3D vertex = Matrix.multiplyVector(
-                            matrix,
-                            vectors.get(i)
+                    vertices[i] = new Vertex3D(
+                            Matrix4D.multiplyVector(
+                                    viewProjectionMatrix,
+                                    vectors.get(i).position
+                            ),
+                            vectors.get(i).texture,
+                            Matrix4D.multiplyVector(
+                                    transformMatrix,
+                                    drawMode.light == 0 ? polygon.getNormal() : vectors.get(i).normal
+                            )
                     );
-                    vertices[i] = new double[]{
-                            vertex.x / vertex.w * SCREEN_WIDTH / 2 + SCREEN_WIDTH / 2,
-                            SCREEN_HEIGHT - (vertex.y / vertex.w * SCREEN_HEIGHT / 2 + SCREEN_HEIGHT / 2)
-                    };
                 }
 
-                Drawer.drawLine(
-                        (int) vertices[0][0],
-                        (int) vertices[0][1],
-                        (int) vertices[1][0],
-                        (int) vertices[1][1],
-                        g
-                );
-                Drawer.drawLine(
-                        (int) vertices[1][0],
-                        (int) vertices[1][1],
-                        (int) vertices[2][0],
-                        (int) vertices[2][1],
-                        g
-                );
-                Drawer.drawLine(
-                        (int) vertices[2][0],
-                        (int) vertices[2][1],
-                        (int) vertices[0][0],
-                        (int) vertices[0][1],
-                        g
-                );
-                Drawer.drawPolygon(
-                        (int) vertices[0][0], (int) vertices[0][1],
-                        (int) vertices[1][0], (int) vertices[1][1],
-                        (int) vertices[2][0], (int) vertices[2][1],
-                        g
-                );
-            }
+                if (vertices[0].position[2] < 0 && vertices[1].position[2] < 0 && vertices[2].position[2] < 0) {
+                    // Draw polygon
+                    Drawer.drawTriangle(
+                            image,
+                            scene,
+                            object,
+                            drawMode,
+                            Matrix4D.multiplyVector(transformMatrix, polygon.getCenter()),
+                            Matrix4D.multiplyVector(transformMatrix, polygon.getNormal()),
+                            vertices[0],
+                            vertices[1],
+                            vertices[2]
+                    );
+                }
+            });
         }
-
-        g.drawString("FPS: " + globalFPS, 10, (int) SCREEN_HEIGHT - 10);
-    }
-
-    public void drawLine(Graphics g, Set<Line2D> lines, double x1, double y1, double x2, double y2) {
-        Line2D line = new Line2D(x1, y1, x2, y2);
-
-        if (!lines.contains(line)) {
-            Bresenham.drawLine((int) x1, (int) y1, (int) x2, (int) y2, g);
-            lines.add(line);
-        }
+        image.getGraphics().setColor(Color.WHITE);
+        image.getGraphics().drawString("target: " + scene.camera.target[0] + " " + scene.camera.target[1] + " " + scene.camera.target[2], 10, Constant.SCREEN_HEIGHT - 10);
     }
 
     public synchronized void start() {
@@ -251,13 +298,13 @@ public class Game implements Runnable {
     void moveCamera(double delta) {
         double cameraSpeed = 2.0 * delta;
         if (keys[87]) // W
-            eye = Vector3D.add(eye, target.multiplyByScalar(cameraSpeed));
+            scene.camera.eye = Vector4D.add(scene.camera.eye, Vector4D.multiplyByScalar(scene.camera.target, cameraSpeed));
         if (keys[83]) // S
-            eye = Vector3D.substruct(eye, target.multiplyByScalar(cameraSpeed));
+            scene.camera.eye = Vector4D.sub(scene.camera.eye, Vector4D.multiplyByScalar(scene.camera.target, cameraSpeed));
         if (keys[65]) // A
-            eye = Vector3D.add(eye, Vector3D.crossProduct(up, target).normalize().multiplyByScalar(cameraSpeed));
+            scene.camera.eye = Vector4D.add(scene.camera.eye, Vector4D.multiplyByScalar(Vector4D.normalize(Vector4D.crossProduct(scene.camera.up, scene.camera.target)), cameraSpeed));
         if (keys[68]) // D
-            eye = Vector3D.substruct(eye, Vector3D.crossProduct(up, target).normalize().multiplyByScalar(cameraSpeed));
+            scene.camera.eye = Vector4D.sub(scene.camera.eye, Vector4D.multiplyByScalar(Vector4D.normalize(Vector4D.crossProduct(scene.camera.up, scene.camera.target)), cameraSpeed));
     }
 
     @Override
@@ -280,7 +327,6 @@ public class Game implements Runnable {
 
             if (lastFpsTime >= 1000000000)
             {
-                globalFPS = fps;
                 lastFpsTime = 0;
                 fps = 0;
             }
@@ -289,10 +335,13 @@ public class Game implements Runnable {
             moveCamera(delta);
             render();
 
-            try{
-                Thread.sleep( (lastLoopTime-System.nanoTime() + optimalTime)/1000000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            long timeout = (lastLoopTime-System.nanoTime() + optimalTime)/1000000;
+            if (timeout >= 0) {
+                try {
+                    Thread.sleep(timeout);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -301,7 +350,7 @@ public class Game implements Runnable {
         frame.repaint();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws AWTException {
         Game game = new Game();
         game.start();
     }

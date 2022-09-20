@@ -1,31 +1,28 @@
-package com.ofeitus.modelviewer.model;
+package com.ofeitus.modelviewer.util;
 
-import static java.lang.Math.cos;
-import static java.lang.Math.sin;
+public class Matrix4D {
+    public static double[][] getLookAt(double[] eye, double[] target, double[] up) {
+        double[] vz = Vector4D.normalize(Vector4D.sub(eye, target));
+        double[] vx = Vector4D.normalize(Vector4D.crossProduct(up, vz));
+        double[] vy = Vector4D.normalize(Vector4D.crossProduct(vz, vx));
 
-public class Matrix {
-    public static double[][] getLookAt(Vector3D eye, Vector3D target, Vector3D up) {
-        Vector3D vz = Vector3D.substruct(eye, target).normalize();
-        Vector3D vx = Vector3D.crossProduct(up, vz).normalize();
-        Vector3D vy = Vector3D.crossProduct(vz, vx).normalize();
-
-        return Matrix.multiply(
-            Matrix.getTranslation(-eye.x, -eye.y, -eye.z),
+        return Matrix4D.multiply(
+            Matrix4D.getTranslation(-eye[0], -eye[1], -eye[2]),
             new double[][]{
-                    {vx.x, vx.y, vx.z, 0},
-                    {vy.x, vy.y, vy.z, 0},
-                    {vz.x, vz.y, vz.z, 0},
+                    {vx[0], vx[1], vx[2], 0},
+                    {vy[0], vy[1], vy[2], 0},
+                    {vz[0], vz[1], vz[2], 0},
                     {0, 0, 0, 1}
             }
         );
     }
 
-    public static double[][] getPerspectiveProjection(double fovy, double aspect, double n, double f) {
-        double radians = Math.PI / 180 * fovy;
+    public static double[][] getPerspectiveProjection(double fov, double aspect, double zNear, double zFar) {
+        double radians = Math.PI / 180 * fov;
         double sx = (1 / Math.tan(radians / 2)) / aspect;
         double sy = (1 / Math.tan(radians / 2));
-        double sz = (f + n) / (f - n);
-        double dz = (-2 * f * n) / (f - n);
+        double sz = (zFar + zNear) / (zFar - zNear);
+        double dz = (-2 * zFar * zNear) / (zFar - zNear);
 
         return new double[][]{
                 {sx, 0, 0, 0},
@@ -33,6 +30,21 @@ public class Matrix {
                 {0, 0, sz, dz},
                 {0, 0, -1, 0}
         };
+    }
+
+    public static double[][] transpose(double[][] m) {
+        double[][] tm = new double[][]{
+                {0, 0, 0, 0},
+                {0, 0, 0, 0},
+                {0, 0, 0, 0},
+                {0, 0, 0, 0}
+        };
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                tm[i][j] = m[j][i];
+            }
+        }
+        return tm;
     }
 
     public static double[][] multiply(double[][] a, double[][] b) {
@@ -96,7 +108,7 @@ public class Matrix {
         //        {(-sin(y)), (cos(y) * sin(x)), (cos(y) * cos(x)), 0},
         //        {0, 0, 0, 1}
         //};
-        return Matrix.multiply(Matrix.multiply(Matrix.getRotationY(y), Matrix.getRotationX(x)), Matrix.getRotationZ(z));
+        return Matrix4D.multiply(Matrix4D.multiply(Matrix4D.getRotationY(y), Matrix4D.getRotationX(x)), Matrix4D.getRotationZ(z));
     }
 
     public static double[][] getTranslation(double dx, double dy, double dz) {
@@ -117,12 +129,30 @@ public class Matrix {
         };
     }
 
-    public static Vector3D multiplyVector(double[][] m, Vector3D v) {
-        return new Vector3D(
-                m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z + m[0][3] * v.w,
-                m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z + m[1][3] * v.w,
-                m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z + m[2][3] * v.w,
-                m[3][0] * v.x + m[3][1] * v.y + m[3][2] * v.z + m[3][3] * v.w
-        );
+    public static double[] multiplyVector(double[][] m, double[] v) {
+        return new double[]{
+                m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3] * v[3],
+                m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3] * v[3],
+                m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3] * v[3],
+                m[3][0] * v[0] + m[3][1] * v[1] + m[3][2] * v[2] + m[3][3] * v[3]
+        };
+    }
+
+    public static double[][] getIdentity() {
+        return new double[][]{
+                {1, 0, 0, 0},
+                {0, 1, 0, 0},
+                {0, 0, 1, 0},
+                {0, 0, 0, 1}
+        };
+    }
+
+    public static double[][] copy(double[][] m) {
+        return new double[][]{
+                {m[0][0], m[0][1], m[0][2], m[0][3]},
+                {m[1][0], m[1][1], m[1][2], m[1][3]},
+                {m[2][0], m[2][1], m[2][2], m[2][3]},
+                {m[3][0], m[3][1], m[3][2], m[3][3]}
+        };
     }
 }
