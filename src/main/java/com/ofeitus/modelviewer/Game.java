@@ -35,10 +35,11 @@ public class Game implements Runnable {
             new double[Constant.SCREEN_HEIGHT][Constant.SCREEN_WIDTH]
     );
     JFrame frame;
-    // Background
     BufferedImage background;
     boolean[] keys = new boolean[1024];
     private boolean running = false;
+    private FpsCounter fpsCounter = new FpsCounter();
+    private double rotation = 0;
 
     public Game() throws AWTException {
         // Invisible cursor
@@ -81,6 +82,7 @@ public class Game implements Runnable {
         }
 
         frame = new JFrame("3D"){
+
             @Override
             public void paint(Graphics g) {
                 Image img = Game.this.createImage();
@@ -144,42 +146,48 @@ public class Game implements Runnable {
         BufferedImage bufferedImage = new BufferedImage(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, BufferedImage.TYPE_INT_RGB);
         Graphics g = bufferedImage.getGraphics();
         g.drawImage(background, 0, 0, Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, null, null);
+
+        // Draw grid
         drawObject(bufferedImage, objects.get(0), new DrawMode(
                 false,
                 1,
-                false,
+                true,
                 false,
                 true
         ), 0, 0, 0, 0, 0, 0, 1);
+
+        // Draw objects
         drawObject(bufferedImage, objects.get(1), new DrawMode(
                 false,
                 0,
                 true,
                 false,
                 false
-        ), 50, 150, 0, 30, 0, 0, 50);
+        ), 50, 150, 0, 0, rotation, 0, 50);
         drawObject(bufferedImage, objects.get(1), new DrawMode(
                 false,
                 1,
                 true,
                 false,
                 false
-        ), -50, 50, 0, 30, 0, 0, 50);
+        ), -50, 50, 0, 0, rotation, 0, 50);
         drawObject(bufferedImage, objects.get(1), new DrawMode(
                 false,
                 1,
                 true,
                 true,
                 false
-        ), 50, 50, 0, 30, 0, 0, 50);
+        ), 50, 50, 0, 0, rotation, 0, 50);
         drawObject(bufferedImage, objects.get(1), new DrawMode(
                 true,
                 1,
-                false,
+                true,
                 false,
                 false
-        ), -50, 150, 0, 30, 0, 0, 50);
+        ), -50, 150, 0, 0, rotation, 0, 50);
 
+        // Draw fps count
+        g.drawString("fps: " + fpsCounter.count(), 10, Constant.SCREEN_HEIGHT - 10);
         return bufferedImage;
     }
 
@@ -258,8 +266,6 @@ public class Game implements Runnable {
                 }
             });
         }
-        image.getGraphics().setColor(Color.WHITE);
-        image.getGraphics().drawString("target: " + scene.camera.target[0] + " " + scene.camera.target[1] + " " + scene.camera.target[2], 10, Constant.SCREEN_HEIGHT - 10);
     }
 
     public synchronized void start() {
@@ -301,8 +307,12 @@ public class Game implements Runnable {
             lastFpsTime += updateLength;
             fps++;
 
-            if (lastFpsTime >= 1000000000)
-            {
+            rotation += 1;
+            if (rotation >= 360) {
+                rotation = 0;
+            }
+
+            if (lastFpsTime >= 1000000000) {
                 lastFpsTime = 0;
                 fps = 0;
             }
