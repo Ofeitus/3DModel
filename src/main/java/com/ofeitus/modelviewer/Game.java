@@ -51,8 +51,8 @@ public class Game implements Runnable {
         try {
             background = ImageIO.read(new File("C:\\Users\\ofeitus\\Desktop\\labs\\models\\background.jpg"));
             // Grid
-            Object3D grid = new Object3D("Grid", null, null, null);
-            PolygonGroup polygonGroup = new PolygonGroup("grid");
+            Object3D grid = new Object3D("Grid");
+            PolygonGroup polygonGroup = new PolygonGroup("grid", null, null, null);
             for (int i = -10; i <= 10; i++) {
                 List<Vertex3D> vertices = new ArrayList<>();
                 vertices.add(new Vertex3D(i * 10.0, 0, -100));
@@ -72,29 +72,7 @@ public class Game implements Runnable {
             grid.addPolygonGroup(polygonGroup);
             objects.add(grid);
 
-            objects.add(objectLoader.loadObject(
-                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\guitar\\source\\cube.obj",
-                    "",
-                    "",
-                    ""));
-            objects.add(objectLoader.loadObject(
-                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\guitar\\source\\Guitar.obj",
-                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\guitar\\textures\\Guitar_Base_color.png",
-                    "",
-                    ""
-            ));
-            objects.add(objectLoader.loadObject(
-                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\amp\\source\\amp.obj",
-                    "",
-                    "",
-                    ""
-            ));
-            objects.add(objectLoader.loadObject(
-                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\skull\\source\\skull.obj",
-                    "C:\\Users\\ofeitus\\Desktop\\labs\\models\\skull\\textures\\Rosa_material_albedo.jpeg",
-                    "",
-                    ""
-            ));
+            objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\skull\\skull.obj"));
             for (Object3D object : objects) {
                 System.out.println(object);
             }
@@ -173,30 +151,28 @@ public class Game implements Runnable {
                 false,
                 true
         ), 0, 0, 0, 0, 0, 0, 1);
-        //drawObject(g, objects.get(3), DrawMode.WIREFRAME, 42, 60, -10, 0, 0, 0, 3);
-        //drawObject(g, objects.get(2), DrawMode.LAMBERTIAN_LIGHT, -50, 120, 0, 45, -90, 60, 1);
-        drawObject(bufferedImage, objects.get(4), new DrawMode(
+        drawObject(bufferedImage, objects.get(1), new DrawMode(
                 false,
                 0,
                 true,
                 false,
                 false
         ), 50, 150, 0, 30, 0, 0, 50);
-        drawObject(bufferedImage, objects.get(4), new DrawMode(
+        drawObject(bufferedImage, objects.get(1), new DrawMode(
                 false,
                 1,
                 true,
                 false,
                 false
         ), -50, 50, 0, 30, 0, 0, 50);
-        drawObject(bufferedImage, objects.get(4), new DrawMode(
+        drawObject(bufferedImage, objects.get(1), new DrawMode(
                 false,
                 1,
                 true,
                 true,
                 false
         ), 50, 50, 0, 30, 0, 0, 50);
-        drawObject(bufferedImage, objects.get(4), new DrawMode(
+        drawObject(bufferedImage, objects.get(1), new DrawMode(
                 true,
                 1,
                 false,
@@ -271,7 +247,7 @@ public class Game implements Runnable {
                     Drawer.drawTriangle(
                             image,
                             scene,
-                            object,
+                            polygonGroup,
                             drawMode,
                             Matrix4D.multiplyVector(transformMatrix, polygon.getCenter()),
                             Matrix4D.multiplyVector(transformMatrix, polygon.getNormal()),

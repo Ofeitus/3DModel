@@ -15,6 +15,7 @@ public class ObjectLoader {
     protected List<double[]> textures;
     protected List<double[]> normals;
     protected ObjLineParser parser;
+    protected File root;
     private Object3D object;
     private PolygonGroup currentGroup;
 
@@ -25,29 +26,14 @@ public class ObjectLoader {
         parser = new ObjLineParser();
     }
 
-    public Object3D loadObject(String model, String texture, String normalMap, String reflectionMap) throws IOException {
+    public Object3D loadObject(String model) throws IOException {
         File modelFile = new File(model);
-        BufferedImage textureFile, normalMapFile, reflectionMapFile;
-        if (texture.equals("")) {
-            textureFile = null;
-        } else {
-            textureFile = ImageIO.read(new File(texture));
-        }
-        if (normalMap.equals("")) {
-            normalMapFile = null;
-        } else {
-            normalMapFile = ImageIO.read(new File(normalMap));
-        }
-        if (reflectionMap.equals("")) {
-            reflectionMapFile = null;
-        } else {
-            reflectionMapFile = ImageIO.read(new File(reflectionMap));
-        }
-        object = new Object3D(modelFile.getName(), textureFile, normalMapFile, reflectionMapFile);
+        root = modelFile.getParentFile();
+        object = new Object3D(modelFile.getName());
         vertices.clear();
         textures.clear();
         normals.clear();
-        currentGroup = new PolygonGroup("Default group");
+        currentGroup = new PolygonGroup("Default group", null, null, null);
         object.addPolygonGroup(currentGroup);
         parseFile(model);
         return object;
@@ -96,8 +82,7 @@ public class ObjectLoader {
     }
 
     protected class ObjLineParser {
-        public void parseLine(String line) throws NumberFormatException, NoSuchElementException
-        {
+        public void parseLine(String line) throws NumberFormatException, NoSuchElementException, IOException {
             StringTokenizer tokenizer = new StringTokenizer(line);
             String command = tokenizer.nextToken();
             switch (command) {
@@ -148,17 +133,23 @@ public class ObjectLoader {
                     // define the current group
                     if (tokenizer.hasMoreTokens()) {
                         String name = tokenizer.nextToken();
-                        currentGroup = new PolygonGroup(name);
+                        currentGroup = new PolygonGroup(name, null, null, null);
                     } else {
-                        currentGroup = new PolygonGroup();
+                        currentGroup = new PolygonGroup("", null, null, null);
                     }
                     object.addPolygonGroup(currentGroup);
                     break;
-                case "mtllib":
-                    // load materials from file
-                    break;
                 case "usemtl":
-                    // define the current material
+                    String materialName = tokenizer.nextToken();
+                    currentGroup.setTexture(ImageIO.read(
+                            root.listFiles((dir, name) -> name.startsWith(materialName + "_base_color"))[0]
+                    ));
+                    currentGroup.setNormalMap(ImageIO.read(
+                            root.listFiles((dir, name) -> name.startsWith(materialName + "_normal"))[0]
+                    ));
+                    currentGroup.setReflectionMap(ImageIO.read(
+                            root.listFiles((dir, name) -> name.startsWith(materialName + "_roughness"))[0]
+                    ));
                     break;
                 default:
                     // unknown command

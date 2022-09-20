@@ -3,6 +3,7 @@ package com.ofeitus.modelviewer.graphics;
 import com.ofeitus.modelviewer.constant.Constant;
 import com.ofeitus.modelviewer.model.Camera;
 import com.ofeitus.modelviewer.model.Object3D;
+import com.ofeitus.modelviewer.model.PolygonGroup;
 import com.ofeitus.modelviewer.model.Vertex3D;
 import com.ofeitus.modelviewer.util.Vector4D;
 
@@ -192,7 +193,7 @@ public class Drawer {
         color[2] *= ((light.ka + diffuse + specular) * light.color[2]);
     }
 
-    private static void drawHorizontalLine(BufferedImage image, Scene scene, Object3D object, DrawMode drawMode, int x1, int x2, int y, Vertex3D v, Vertex3D step) {
+    private static void drawHorizontalLine(BufferedImage image, Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, int x1, int x2, int y, Vertex3D v, Vertex3D step) {
         double z;
         double[] normal = new double[4];
         while (x1 < x2) {
@@ -210,9 +211,9 @@ public class Drawer {
                     applyPhongLighting(scene, normal, color);
                 }
 
-                if (object.getTexture() != null && drawMode.texture) {
-                    int textureSize = object.getTexture().getHeight();
-                    int textureColor = object.getTexture().getRGB((int)(textureSize * v.texture[0]), (int)(textureSize * (1 - v.texture[1])));
+                if (polygonGroup.getTexture() != null && drawMode.texture) {
+                    int textureSize = polygonGroup.getTexture().getHeight();
+                    int textureColor = polygonGroup.getTexture().getRGB((int)(textureSize * v.texture[0]), (int)(textureSize * (1 - v.texture[1])));
                     color[0] *= ((textureColor >> 16) & 255) / 255.0;
                     color[1] *= ((textureColor >> 8) & 255) / 255.0;
                     color[2] *= (textureColor & 255) / 255.0;
@@ -237,7 +238,7 @@ public class Drawer {
         }
     }
 
-    private static void rasterizeBottomTriangle(BufferedImage image, Scene scene, Object3D object, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
+    private static void rasterizeBottomTriangle(BufferedImage image, Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
         double top = Math.min(v1.position[1], Constant.SCREEN_HEIGHT);
         double bottom = Math.max(v3.position[1], 0);
 
@@ -274,11 +275,11 @@ public class Drawer {
                 x2++;
             }
 
-            drawHorizontalLine(image, scene, object, drawMode, x1, x2, y, left, step);
+            drawHorizontalLine(image, scene, polygonGroup, drawMode, x1, x2, y, left, step);
         }
     }
 
-    private static void rasterizeTopTriangle(BufferedImage image, Scene scene, Object3D object, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
+    private static void rasterizeTopTriangle(BufferedImage image, Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
         double top = Math.min(v2.position[1], Constant.SCREEN_HEIGHT);
         double bottom = Math.max(v3.position[1], 0);
 
@@ -315,11 +316,11 @@ public class Drawer {
                 x2++;
             }
 
-            drawHorizontalLine(image, scene, object, drawMode, x1, x2, y, left, step);
+            drawHorizontalLine(image, scene, polygonGroup, drawMode, x1, x2, y, left, step);
         }
     }
 
-    public static void drawTriangle(BufferedImage image, Scene scene, Object3D object, DrawMode drawMode, double[] center, double[] normal, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
+    public static void drawTriangle(BufferedImage image, Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, double[] center, double[] normal, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
         if (drawMode.faceCulling && cosBetweenVectors(Vector4D.sub(scene.camera.eye, center), normal) < 0) {
             return;
         }
@@ -339,16 +340,16 @@ public class Drawer {
             Vertex3D bottom = vertices[2];
 
             if (Math.abs(middle.position[1] - bottom.position[1]) < EPSILON) {
-                rasterizeBottomTriangle(image, scene, object, drawMode, top, middle, bottom);
+                rasterizeBottomTriangle(image, scene, polygonGroup, drawMode, top, middle, bottom);
             }
             else if (Math.abs(middle.position[1] - top.position[1]) < EPSILON) {
-                rasterizeTopTriangle(image, scene, object, drawMode, top, middle, bottom);
+                rasterizeTopTriangle(image, scene, polygonGroup, drawMode, top, middle, bottom);
             }
             else {
                 Vertex3D v4 = new Vertex3D(0, 0, 0);
                 vertexInterpolation(v4, top, bottom, (top.position[1] - middle.position[1]) / (top.position[1] - bottom.position[1]));
-                rasterizeBottomTriangle(image, scene, object, drawMode, top, middle, v4);
-                rasterizeTopTriangle(image, scene, object, drawMode, middle, v4, bottom);
+                rasterizeBottomTriangle(image, scene, polygonGroup, drawMode, top, middle, v4);
+                rasterizeTopTriangle(image, scene, polygonGroup, drawMode, middle, v4, bottom);
             }
         } else {
             drawLineBresenham(image, (int)v1.position[0], (int)v1.position[1], (int)v2.position[0], (int)v2.position[1]);
