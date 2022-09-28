@@ -148,7 +148,7 @@ public class ObjectLoader {
                             root.listFiles((dir, name) -> name.startsWith(materialName + "_normal"))[0]
                     ));
                     currentGroup.setReflectionMap(ImageIO.read(
-                            root.listFiles((dir, name) -> name.startsWith(materialName + "_roughness"))[0]
+                            root.listFiles((dir, name) -> name.startsWith(materialName + "_reflection"))[0]
                     ));
                     break;
                 default:

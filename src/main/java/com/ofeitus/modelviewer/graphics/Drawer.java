@@ -1,10 +1,8 @@
 package com.ofeitus.modelviewer.graphics;
 
 import com.ofeitus.modelviewer.constant.Constant;
-import com.ofeitus.modelviewer.model.Camera;
-import com.ofeitus.modelviewer.model.Object3D;
-import com.ofeitus.modelviewer.model.PolygonGroup;
-import com.ofeitus.modelviewer.model.Vertex3D;
+import com.ofeitus.modelviewer.model.*;
+import com.ofeitus.modelviewer.util.Matrix4D;
 import com.ofeitus.modelviewer.util.Vector4D;
 
 import java.awt.*;
@@ -21,7 +19,7 @@ public class Drawer {
         return Integer.compare(x, 0);
     }
 
-    public static void drawLineBresenham(BufferedImage image, int xStart, int yStart, int xEnd, int yEnd) {
+    public static void drawLineBresenham(Scene scene, int xStart, int yStart, int xEnd, int yEnd) {
         int x;
         int y;
         int dx;
@@ -64,7 +62,7 @@ public class Drawer {
         y = yStart;
         err = el/2;
         if (x > 0 && x < Constant.SCREEN_WIDTH && y > 0 && y < Constant.SCREEN_HEIGHT) {
-            image.setRGB(x, y, 0xffffff);
+            scene.image.setRGB(x, y, 0xffffff);
         }
 
         for (int t = 0; t < el; t++) {
@@ -78,7 +76,7 @@ public class Drawer {
                 y += pdy;
             }
             if (x > 0 && x < Constant.SCREEN_WIDTH && y > 0 && y < Constant.SCREEN_HEIGHT) {
-                image.setRGB(x, y, 0xffffff);
+                scene.image.setRGB(x, y, 0xffffff);
             }
         }
     }
@@ -135,7 +133,11 @@ public class Drawer {
     }
 
     private static double interpolation(double x1, double x2, double t) {
-        return x1 + (x2 - x1) * t;
+        return (1 - t) * x1 + t * x2;
+    }
+
+    private static double perspectiveInterpolation(double x1, double x1z, double x2, double x2z, double t) {
+        return ((1 - t) * x1 / x1z + t * x2 / x2z) / ((1 - t) / x1z + t / x2z);
     }
 
     private static void vectorInterpolation(double[] out, double[] a, double[] b, double t) {
@@ -144,9 +146,17 @@ public class Drawer {
         out[2] = interpolation(a[2], b[2], t);
     }
 
+    private static void interpolateTexture(double[] out, double[] a, double az, double[] b, double bz, double t) {
+        out[0] = perspectiveInterpolation(a[0], az, b[0], bz, t);
+        out[1] = perspectiveInterpolation(a[1], az, b[1], bz, t);
+    }
+
     private static void vertexInterpolation(Vertex3D out, Vertex3D v1, Vertex3D v2, double t) {
         vectorInterpolation(out.position, v1.position, v2.position, t);
         vectorInterpolation(out.texture, v1.texture, v2.texture, t);
+        if (Constant.INTERPOLATION) {
+            interpolateTexture(out.texture, v1.texture, v1.position[2], v2.texture, v2.position[2], t);
+        }
         vectorInterpolation(out.normal, v1.normal, v2.normal, t);
         out.oneOverZ = interpolation(v1.oneOverZ, v2.oneOverZ, t);
     }
@@ -167,7 +177,7 @@ public class Drawer {
         color[2] *= (diffuse * light.color[2]);
     }
 
-    private static void applyPhongLighting(Scene scene, double[] normal, double[] color) {
+    private static void applyPhongLighting(Scene scene, double[] normal, double[] color, double reflection) {
         Light light = scene.light;
 
         double[] lightDirection = Vector4D.normalize(light.position);
@@ -180,43 +190,91 @@ public class Drawer {
 
         double[] eye = Vector4D.normalize(scene.camera.eye);
 
-        double[] specularDirection = Vector4D.normalize(Vector4D.add(lightDirection, eye));
+        // Модель Блина-Фонга
+        //double[] specularDirection = Vector4D.normalize(Vector4D.add(lightDirection, eye));
+        //double specular = Vector4D.scalarProduct(
+        //        Vector4D.normalize(normal),
+        //        specularDirection
+        //`);
+
+        double[] lightReflection = Vector4D.sub(
+                lightDirection,
+                Vector4D.multiplyByScalar(
+                        Vector4D.crossProduct(
+                                Vector4D.crossProduct(
+                                        Vector4D.invert(lightDirection),
+                                        Vector4D.normalize(normal)
+                                ),
+                                Vector4D.normalize(normal)
+                        ),
+                        2
+                )
+        );
 
         double specular = Vector4D.scalarProduct(
-                Vector4D.normalize(normal),
-                specularDirection
+                lightReflection,
+                eye
         );
-        specular = light.ks * Math.pow(Math.max(specular, 0), light.shininess);
+
+        specular = (reflection) * Math.pow(Math.max(specular, 0), light.shininess);
 
         color[0] *= ((light.ka + diffuse + specular) * light.color[0]);
         color[1] *= ((light.ka + diffuse + specular) * light.color[1]);
         color[2] *= ((light.ka + diffuse + specular) * light.color[2]);
     }
 
-    private static void drawHorizontalLine(BufferedImage image, Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, int x1, int x2, int y, Vertex3D v, Vertex3D step) {
-        double z;
-        double[] normal = new double[4];
+    private static int getTextureValue(BufferedImage texture, double[] textureCoordinates) {
+        int textureSize = texture.getHeight();
+        int xCoordinate = (int)(textureSize * textureCoordinates[0]);
+        int yCoordinate = (int)(textureSize * (1 - textureCoordinates[1]));
+        return texture.getRGB(xCoordinate % textureSize, yCoordinate % textureSize);
+    }
+
+    private static void drawHorizontalLine(Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, int x1, int x2, int y, Vertex3D left, Vertex3D right) {
+        int width = x2 - x1;
         while (x1 < x2) {
+            double t = (double) (x2 - x1) / width;
+            Vertex3D v = new Vertex3D(0, 0, 0);
+            vertexInterpolation(v, left, right, 1 - t);
             if (x1 >= 0 && x1 < Constant.SCREEN_WIDTH && y >= 0 && y < Constant.SCREEN_HEIGHT && scene.zBuffer[y][x1] <= v.oneOverZ) {
-                z = 1 / v.oneOverZ;
-                normal[0] = v.normal[0] * z;
-                normal[1] = v.normal[1] * z;
-                normal[2] = v.normal[2] * z;
-                normal[3] = 0;
-
                 double[] color = new double[] {1, 1, 1, 1};
-                if (drawMode.light == 0) {
-                    applyLambertianLighting(scene, normal, color);
-                } else {
-                    applyPhongLighting(scene, normal, color);
-                }
-
-                if (polygonGroup.getTexture() != null && drawMode.texture) {
-                    int textureSize = polygonGroup.getTexture().getHeight();
-                    int textureColor = polygonGroup.getTexture().getRGB((int)(textureSize * v.texture[0]), (int)(textureSize * (1 - v.texture[1])));
+                // Base color
+                if (polygonGroup.getTexture() != null && drawMode.useTexture) {
+                    int textureColor = getTextureValue(polygonGroup.getTexture(), v.texture);
                     color[0] *= ((textureColor >> 16) & 255) / 255.0;
                     color[1] *= ((textureColor >> 8) & 255) / 255.0;
                     color[2] *= (textureColor & 255) / 255.0;
+                }
+
+                double[] normal;
+                // Normal map
+                if (polygonGroup.getNormalMap() != null && drawMode.useNormalMap) {
+                    int normalValue = getTextureValue(polygonGroup.getNormalMap(), v.texture);
+                    normal = Matrix4D.multiplyVector(
+                            drawMode.rotationMatrix,
+                            new double[]{
+                                    (((normalValue >> 16) & 255) / 255.0) * 2 - 1,
+                                    (((normalValue >> 8) & 255) / 255.0) * 2 - 1,
+                                    ((normalValue & 255) / 255.0) * 2 - 1,
+                                    1
+                            }
+                    );
+                } else {
+                    normal = v.normal;
+                }
+
+                double reflection = scene.light.ks;
+                // Reflection map
+                if (polygonGroup.getReflectionMap() != null && drawMode.useReflectionMap) {
+                    int reflectionValue = getTextureValue(polygonGroup.getReflectionMap(), v.texture);
+                    reflection = (reflectionValue & 255) / 255.0 * 5;
+                }
+
+                // Lighting
+                if (drawMode.light == 0) {
+                    applyLambertianLighting(scene, normal, color);
+                } else {
+                    applyPhongLighting(scene, normal, color, reflection);
                 }
 
                 color[0] = Math.min(color[0], 1);
@@ -225,20 +283,15 @@ public class Drawer {
 
                 Color rgb = new Color((float)color[0], (float)color[1], (float)color[2]);
 
-                image.setRGB(x1, y, rgb.getRGB());
-
+                scene.image.setRGB(x1, y, rgb.getRGB());
                 scene.zBuffer[y][x1] = v.oneOverZ;
             }
 
-            v.position = Vector4D.add(v.position, step.position);
-            v.texture = Vector4D.add(v.texture, step.texture);
-            v.normal = Vector4D.add(v.normal, step.normal);
-            v.oneOverZ += step.oneOverZ;
             x1++;
         }
     }
 
-    private static void rasterizeBottomTriangle(BufferedImage image, Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
+    private static void rasterizeBottomTriangle(Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3, double[] center) {
         double top = Math.min(v1.position[1], Constant.SCREEN_HEIGHT);
         double bottom = Math.max(v3.position[1], 0);
 
@@ -262,24 +315,16 @@ public class Drawer {
 
             int x1 = (int)(left.position[0] + 0.5);
             int x2 = (int)(right.position[0] + 0.5);
-            double oneOverWidth = 1 / (right.position[0] - left.position[0]);
-
-            Vertex3D step = new Vertex3D(
-                    Vector4D.multiplyByScalar(Vector4D.sub(right.position, left.position), oneOverWidth),
-                    Vector4D.multiplyByScalar(Vector4D.sub(right.texture, left.texture), oneOverWidth),
-                    Vector4D.multiplyByScalar(Vector4D.sub(right.normal, left.normal), oneOverWidth)
-            );
-            step.oneOverZ = (right.oneOverZ - left.oneOverZ) * oneOverWidth;
 
             if (drawMode.line && x1 == x2) {
                 x2++;
             }
 
-            drawHorizontalLine(image, scene, polygonGroup, drawMode, x1, x2, y, left, step);
+            drawHorizontalLine(scene, polygonGroup, drawMode, x1, x2, y, left, right);
         }
     }
 
-    private static void rasterizeTopTriangle(BufferedImage image, Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
+    private static void rasterizeTopTriangle(Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3, double[] center) {
         double top = Math.min(v2.position[1], Constant.SCREEN_HEIGHT);
         double bottom = Math.max(v3.position[1], 0);
 
@@ -303,24 +348,18 @@ public class Drawer {
 
             int x1 = (int)(left.position[0] + 0.5);
             int x2 = (int)(right.position[0] + 0.5);
-            double oneOverWidth = 1 / (right.position[0] - left.position[0]);
-
-            Vertex3D step = new Vertex3D(
-                    Vector4D.multiplyByScalar(Vector4D.sub(right.position, left.position), oneOverWidth),
-                    Vector4D.multiplyByScalar(Vector4D.sub(right.texture, left.texture), oneOverWidth),
-                    Vector4D.multiplyByScalar(Vector4D.sub(right.normal, left.normal), oneOverWidth)
-            );
-            step.oneOverZ = (right.oneOverZ - left.oneOverZ) * oneOverWidth;
 
             if (drawMode.line && x1 == x2) {
                 x2++;
             }
 
-            drawHorizontalLine(image, scene, polygonGroup, drawMode, x1, x2, y, left, step);
+            drawHorizontalLine(scene, polygonGroup, drawMode, x1, x2, y, left, right);
         }
     }
 
-    public static void drawTriangle(BufferedImage image, Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, double[] center, double[] normal, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
+    public static void drawTriangle(Scene scene, PolygonGroup polygonGroup, Polygon3D polygon, DrawMode drawMode, Vertex3D v1, Vertex3D v2, Vertex3D v3) {
+        double[] center = Matrix4D.multiplyVector(drawMode.transformMatrix, polygon.getCenter());
+        double[] normal = Matrix4D.multiplyVector(drawMode.transformMatrix, polygon.getNormal());
         if (drawMode.faceCulling && cosBetweenVectors(Vector4D.sub(scene.camera.eye, center), normal) < 0) {
             return;
         }
@@ -340,21 +379,21 @@ public class Drawer {
             Vertex3D bottom = vertices[2];
 
             if (Math.abs(middle.position[1] - bottom.position[1]) < EPSILON) {
-                rasterizeBottomTriangle(image, scene, polygonGroup, drawMode, top, middle, bottom);
+                rasterizeBottomTriangle(scene, polygonGroup, drawMode, top, middle, bottom, center);
             }
             else if (Math.abs(middle.position[1] - top.position[1]) < EPSILON) {
-                rasterizeTopTriangle(image, scene, polygonGroup, drawMode, top, middle, bottom);
+                rasterizeTopTriangle(scene, polygonGroup, drawMode, top, middle, bottom, center);
             }
             else {
                 Vertex3D v4 = new Vertex3D(0, 0, 0);
                 vertexInterpolation(v4, top, bottom, (top.position[1] - middle.position[1]) / (top.position[1] - bottom.position[1]));
-                rasterizeBottomTriangle(image, scene, polygonGroup, drawMode, top, middle, v4);
-                rasterizeTopTriangle(image, scene, polygonGroup, drawMode, middle, v4, bottom);
+                rasterizeBottomTriangle(scene, polygonGroup, drawMode, top, middle, v4, center);
+                rasterizeTopTriangle(scene, polygonGroup, drawMode, middle, v4, bottom, center);
             }
         } else {
-            drawLineBresenham(image, (int)v1.position[0], (int)v1.position[1], (int)v2.position[0], (int)v2.position[1]);
-            drawLineBresenham(image, (int)v2.position[0], (int)v2.position[1], (int)v3.position[0], (int)v3.position[1]);
-            drawLineBresenham(image, (int)v3.position[0], (int)v3.position[1], (int)v1.position[0], (int)v1.position[1]);
+            drawLineBresenham(scene, (int)v1.position[0], (int)v1.position[1], (int)v2.position[0], (int)v2.position[1]);
+            drawLineBresenham(scene, (int)v2.position[0], (int)v2.position[1], (int)v3.position[0], (int)v3.position[1]);
+            drawLineBresenham(scene, (int)v3.position[0], (int)v3.position[1], (int)v1.position[0], (int)v1.position[1]);
         }
     }
 
