@@ -55,6 +55,7 @@ public class Game implements Runnable {
         ObjectLoader objectLoader = new ObjectLoader();
         try {
             background = ImageIO.read(new File("C:\\Users\\ofeitus\\Desktop\\labs\\models\\background.jpg"));
+
             // Grid
             Object3D grid = new Object3D("Grid");
             PolygonGroup polygonGroup = new PolygonGroup("grid", null, null, null);
@@ -79,6 +80,7 @@ public class Game implements Runnable {
 
             objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\skull\\skull.obj"));
             objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\cube\\cube.obj"));
+
             for (Object3D object : objects) {
                 System.out.println(object);
             }
@@ -172,7 +174,7 @@ public class Game implements Runnable {
         drawObject(objects.get(0), new DrawMode(
                 false,
                 1,
-                true,
+                false,
                 false,
                 false,
                 false,
@@ -199,18 +201,91 @@ public class Game implements Runnable {
         //        false,
         //        60, 80, 0, rotationX, rotationY, 0, 50));
 
-        // Draw fps count
+        drawAxes();
+
+        // Draw info
         g.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 14));
         g.setColor(useTexture ? Color.GREEN : Color.RED);
-        g.drawString("textures: " + (useTexture ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 90);
+        g.drawString("textures: " + (useTexture ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 95);
         g.setColor(useNormalMap ? Color.GREEN : Color.RED);
-        g.drawString("normal map: " + (useNormalMap ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 70);
+        g.drawString("normal map: " + (useNormalMap ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 75);
         g.setColor(useReflectionMap ? Color.GREEN : Color.RED);
-        g.drawString("reflection map: " + (useReflectionMap ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 50);
+        g.drawString("reflection map: " + (useReflectionMap ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 55);
         g.setColor(Constant.INTERPOLATION ? Color.GREEN : Color.RED);
-        g.drawString("interpolation: " + (Constant.INTERPOLATION ? "perspective" : "affine"), 10, Constant.SCREEN_HEIGHT - 30);
+        g.drawString("interpolation: " + (Constant.INTERPOLATION ? "perspective" : "affine"), 10, Constant.SCREEN_HEIGHT - 35);
         g.setColor(Color.WHITE);
-        g.drawString("fps: " + fpsCounter.count(), 10, Constant.SCREEN_HEIGHT - 10);
+        g.drawString("fps: " + fpsCounter.count(), 10, Constant.SCREEN_HEIGHT - 15);
+        g.drawString("target: " +
+                String.format("%5.2f ", scene.camera.target[0]) +
+                String.format("%5.2f ", scene.camera.target[1]) +
+                String.format("%5.2f", scene.camera.target[2]), Constant.SCREEN_WIDTH - 213, Constant.SCREEN_HEIGHT - 35);
+        g.drawString("fov: " + scene.camera.fov, Constant.SCREEN_WIDTH - 85, Constant.SCREEN_HEIGHT - 15);
+    }
+
+    private void drawAxes() {
+        double[][] matrix = Matrix4D.getIdentity();
+        matrix = Matrix4D.multiply(
+                Matrix4D.getLookAt(
+                        new double[]{0, 0, 0, 1},
+                        scene.camera.target,
+                        scene.camera.up
+                ),
+                matrix
+        );
+
+        double[] xAxis = Matrix4D.multiplyVector(
+                matrix,
+                new double[]{1, 0, 0, 1}
+        );
+
+        double[] yAxis = Matrix4D.multiplyVector(
+                matrix,
+                new double[]{0, 1, 0, 1}
+        );
+
+        double[] zAxis = Matrix4D.multiplyVector(
+                matrix,
+                new double[]{0, 0, 1, 1}
+        );
+
+
+        // Draw polygon
+        Drawer.drawLineBresenham(scene,
+                Constant.SCREEN_WIDTH - 100,
+                Constant.SCREEN_HEIGHT - 120,
+                Constant.SCREEN_WIDTH - 100 + (int)(xAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(xAxis[1] * 60),
+                0xff0000);
+        Drawer.drawLineBresenham(scene,
+                Constant.SCREEN_WIDTH - 100,
+                Constant.SCREEN_HEIGHT - 120,
+                Constant.SCREEN_WIDTH - 100 + (int)(yAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(yAxis[1] * 60),
+                0x00ff00);
+        Drawer.drawLineBresenham(scene,
+                Constant.SCREEN_WIDTH - 100,
+                Constant.SCREEN_HEIGHT - 120,
+                Constant.SCREEN_WIDTH - 100 + (int)(zAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(zAxis[1] * 60),
+                0x0000ff);
+
+        Drawer.drawPoint(scene,
+                Constant.SCREEN_WIDTH - 100 + (int)(xAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(xAxis[1] * 60),
+                0xffffff);
+        Drawer.drawPoint(scene,
+                Constant.SCREEN_WIDTH - 100 + (int)(yAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(yAxis[1] * 60),
+                0xffffff);
+        Drawer.drawPoint(scene,
+                Constant.SCREEN_WIDTH - 100 + (int)(zAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(zAxis[1] * 60),
+                0xffffff);
+
+        Drawer.drawPoint(scene,
+                Constant.SCREEN_WIDTH - 100,
+                Constant.SCREEN_HEIGHT - 120,
+                0xffffff);
     }
 
     private void drawObject(Object3D object, DrawMode drawMode) {
@@ -254,7 +329,6 @@ public class Game implements Runnable {
         viewProjectionMatrix = matrix;
 
         for (PolygonGroup polygonGroup : object.getPolygonGroups()) {
-            //for (Polygon3D polygon : polygonGroup.getPolygons()) {
             polygonGroup.getPolygons().parallelStream().forEach(polygon -> {
                 List<Vertex3D> vectors = polygon.getVertices();
 

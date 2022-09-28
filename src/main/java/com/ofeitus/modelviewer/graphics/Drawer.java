@@ -7,6 +7,7 @@ import com.ofeitus.modelviewer.util.Vector4D;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 
 public class Drawer {
     private static final double EPSILON = 0.000001d;
@@ -19,7 +20,7 @@ public class Drawer {
         return Integer.compare(x, 0);
     }
 
-    public static void drawLineBresenham(Scene scene, int xStart, int yStart, int xEnd, int yEnd) {
+    public static void drawLineBresenham(Scene scene, int xStart, int yStart, int xEnd, int yEnd, int color) {
         int x;
         int y;
         int dx;
@@ -62,7 +63,7 @@ public class Drawer {
         y = yStart;
         err = el/2;
         if (x > 0 && x < Constant.SCREEN_WIDTH && y > 0 && y < Constant.SCREEN_HEIGHT) {
-            scene.image.setRGB(x, y, 0xffffff);
+            scene.image.setRGB(x, y, color);
         }
 
         for (int t = 0; t < el; t++) {
@@ -76,7 +77,7 @@ public class Drawer {
                 y += pdy;
             }
             if (x > 0 && x < Constant.SCREEN_WIDTH && y > 0 && y < Constant.SCREEN_HEIGHT) {
-                scene.image.setRGB(x, y, 0xffffff);
+                scene.image.setRGB(x, y, color);
             }
         }
     }
@@ -237,7 +238,7 @@ public class Drawer {
             Vertex3D v = new Vertex3D(0, 0, 0);
             vertexInterpolation(v, left, right, 1 - t);
             if (x1 >= 0 && x1 < Constant.SCREEN_WIDTH && y >= 0 && y < Constant.SCREEN_HEIGHT && scene.zBuffer[y][x1] <= v.oneOverZ) {
-                double[] color = new double[] {1, 1, 1, 1};
+                double[] color = new double[]{1, 1, 1, 1};
                 // Base color
                 if (polygonGroup.getTexture() != null && drawMode.useTexture) {
                     int textureColor = getTextureValue(polygonGroup.getTexture(), v.texture);
@@ -391,18 +392,15 @@ public class Drawer {
                 rasterizeTopTriangle(scene, polygonGroup, drawMode, middle, v4, bottom, center);
             }
         } else {
-            drawLineBresenham(scene, (int)v1.position[0], (int)v1.position[1], (int)v2.position[0], (int)v2.position[1]);
-            drawLineBresenham(scene, (int)v2.position[0], (int)v2.position[1], (int)v3.position[0], (int)v3.position[1]);
-            drawLineBresenham(scene, (int)v3.position[0], (int)v3.position[1], (int)v1.position[0], (int)v1.position[1]);
+            drawLineBresenham(scene, (int)v1.position[0], (int)v1.position[1], (int)v2.position[0], (int)v2.position[1], 0xffffff);
+            drawLineBresenham(scene, (int)v2.position[0], (int)v2.position[1], (int)v3.position[0], (int)v3.position[1], 0xffffff);
+            drawLineBresenham(scene, (int)v3.position[0], (int)v3.position[1], (int)v1.position[0], (int)v1.position[1], 0xffffff);
         }
     }
 
-    public static void drawPoint(Graphics g, Camera camera, double[] center, double[] normal, Vertex3D point) {
-        if (cosBetweenVectors(Vector4D.sub(camera.eye, center), normal) < 0) {
-            return;
-        }
-
-        viewPort(point);
-        g.drawOval((int)point.position[0], (int)point.position[1], 3, 3);
+    public static void drawPoint(Scene scene, int x, int y, int color) {
+        Graphics g = scene.image.getGraphics();
+        g.setColor(new Color(color));
+        g.drawOval(x, y, 4, 4);
     }
 }

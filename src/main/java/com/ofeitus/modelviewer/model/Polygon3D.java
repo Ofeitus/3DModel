@@ -6,7 +6,6 @@ import java.util.List;
 
 public class Polygon3D {
     private final List<Vertex3D> vertices;
-
     private double[] normal;
     private final double[] center;
 
