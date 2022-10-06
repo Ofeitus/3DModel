@@ -6,7 +6,6 @@ import com.ofeitus.modelviewer.model.PolygonGroup;
 import com.ofeitus.modelviewer.model.Vertex3D;
 
 import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
 
@@ -117,11 +116,22 @@ public class ObjectLoader {
                         String indexStr = tokenizer.nextToken();
                         // ignore texture and normal coords
                         String[] indices = indexStr.split("/");
-                        Vertex3D vertex = new Vertex3D(
-                                getVector(indices[0]),
-                                getTexture(indices[1]),
-                                getNormal(indices[2])
-                        );
+                        Vertex3D vertex;
+                        if (indices.length == 2) {
+                            vertex = new Vertex3D(
+                                    getVector(indices[0]),
+                                    getVector(indices[0]),
+                                    getTexture(indices[1]),
+                                    getVector(indices[0])
+                            );
+                        } else {
+                            vertex = new Vertex3D(
+                                    getVector(indices[0]),
+                                    getVector(indices[0]),
+                                    getTexture(indices[1]),
+                                    getNormal(indices[2])
+                            );
+                        }
                         currVertices.add(vertex);
                     }
                     // create textured polygon
@@ -141,15 +151,15 @@ public class ObjectLoader {
                     break;
                 case "usemtl":
                     String materialName = tokenizer.nextToken();
-                    currentGroup.setTexture(ImageIO.read(
-                            root.listFiles((dir, name) -> name.startsWith(materialName + "_base_color"))[0]
-                    ));
-                    currentGroup.setNormalMap(ImageIO.read(
-                            root.listFiles((dir, name) -> name.startsWith(materialName + "_normal"))[0]
-                    ));
-                    currentGroup.setReflectionMap(ImageIO.read(
-                            root.listFiles((dir, name) -> name.startsWith(materialName + "_reflection"))[0]
-                    ));
+                    File[] textureFiles = root.listFiles((dir, name) -> name.startsWith(materialName + "_albedo"));
+                    if (textureFiles != null && textureFiles.length > 0)
+                        currentGroup.setTexture(ImageIO.read(textureFiles[0]));
+                    File[] normalFiles = root.listFiles((dir, name) -> name.startsWith(materialName + "_normal"));
+                    if (normalFiles != null && normalFiles.length > 0)
+                        currentGroup.setNormalMap(ImageIO.read(normalFiles[0]));
+                    File[] reflectionFiles = root.listFiles((dir, name) -> name.startsWith(materialName + "_reflection"));
+                    if (reflectionFiles != null && reflectionFiles.length > 0)
+                        currentGroup.setReflectionMap(ImageIO.read(reflectionFiles[0]));
                     break;
                 default:
                     // unknown command

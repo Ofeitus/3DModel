@@ -63,7 +63,7 @@ public class Drawer {
         y = yStart;
         err = el/2;
         if (x > 0 && x < Constant.SCREEN_WIDTH && y > 0 && y < Constant.SCREEN_HEIGHT) {
-            scene.image.setRGB(x, y, color);
+            scene.imageBuffer[y * Constant.SCREEN_WIDTH + x] = color;
         }
 
         for (int t = 0; t < el; t++) {
@@ -77,7 +77,7 @@ public class Drawer {
                 y += pdy;
             }
             if (x > 0 && x < Constant.SCREEN_WIDTH && y > 0 && y < Constant.SCREEN_HEIGHT) {
-                scene.image.setRGB(x, y, color);
+                scene.imageBuffer[y * Constant.SCREEN_WIDTH + x] = color;
             }
         }
     }
@@ -150,16 +150,36 @@ public class Drawer {
     private static void interpolateTexture(double[] out, double[] a, double az, double[] b, double bz, double t) {
         out[0] = perspectiveInterpolation(a[0], az, b[0], bz, t);
         out[1] = perspectiveInterpolation(a[1], az, b[1], bz, t);
+        out[2] = perspectiveInterpolation(a[2], az, b[2], bz, t);
     }
 
     private static void vertexInterpolation(Vertex3D out, Vertex3D v1, Vertex3D v2, double t) {
         vectorInterpolation(out.position, v1.position, v2.position, t);
-        vectorInterpolation(out.texture, v1.texture, v2.texture, t);
         if (Constant.INTERPOLATION) {
+            interpolateTexture(out.model_pos, v1.model_pos, v1.position[2], v2.model_pos, v2.position[2], t);
             interpolateTexture(out.texture, v1.texture, v1.position[2], v2.texture, v2.position[2], t);
+        } else {
+            vectorInterpolation(out.model_pos, v1.model_pos, v2.model_pos, t);
+            vectorInterpolation(out.texture, v1.texture, v2.texture, t);
         }
         vectorInterpolation(out.normal, v1.normal, v2.normal, t);
         out.oneOverZ = interpolation(v1.oneOverZ, v2.oneOverZ, t);
+    }
+
+    private static double[] reflect(double[] v, double[] normal) {
+        return Vector4D.sub(
+                v,
+                Vector4D.multiplyByScalar(
+                        Vector4D.crossProduct(
+                                Vector4D.crossProduct(
+                                        Vector4D.invert(v),
+                                        Vector4D.normalize(normal)
+                                ),
+                                Vector4D.normalize(normal)
+                        ),
+                        2
+                )
+        );
     }
 
     private static void applyLambertianLighting(Scene scene, double[] normal, double[] color) {
@@ -178,7 +198,7 @@ public class Drawer {
         color[2] *= (diffuse * light.color[2]);
     }
 
-    private static void applyPhongLighting(Scene scene, double[] normal, double[] color, double reflection) {
+    private static void applyPhongLighting(Scene scene, double[] normal, double[] color, double reflection, double[] reflectionColor) {
         Light light = scene.light;
 
         double[] lightDirection = Vector4D.normalize(light.position);
@@ -198,37 +218,30 @@ public class Drawer {
         //        specularDirection
         //`);
 
-        double[] lightReflection = Vector4D.sub(
-                lightDirection,
-                Vector4D.multiplyByScalar(
-                        Vector4D.crossProduct(
-                                Vector4D.crossProduct(
-                                        Vector4D.invert(lightDirection),
-                                        Vector4D.normalize(normal)
-                                ),
-                                Vector4D.normalize(normal)
-                        ),
-                        2
-                )
-        );
+        double[] lightReflection = reflect(lightDirection, normal);
 
         double specular = Vector4D.scalarProduct(
                 lightReflection,
                 eye
         );
 
-        specular = (reflection) * Math.pow(Math.max(specular, 0), light.shininess);
+        specular = 6 * reflection * Math.pow(Math.max(specular, 0), light.shininess);
 
-        color[0] *= ((light.ka + diffuse + specular) * light.color[0]);
-        color[1] *= ((light.ka + diffuse + specular) * light.color[1]);
-        color[2] *= ((light.ka + diffuse + specular) * light.color[2]);
+        color[0] += specular * reflectionColor[0];
+        color[1] += specular * reflectionColor[1];
+        color[2] += specular * reflectionColor[2];
+
+        color[0] *= (light.ka + diffuse) * light.color[0];
+        color[1] *= (light.ka + diffuse) * light.color[1];
+        color[2] *= (light.ka + diffuse) * light.color[2];
     }
 
     private static int getTextureValue(BufferedImage texture, double[] textureCoordinates) {
-        int textureSize = texture.getHeight();
-        int xCoordinate = (int)(textureSize * textureCoordinates[0]);
-        int yCoordinate = (int)(textureSize * (1 - textureCoordinates[1]));
-        return texture.getRGB(xCoordinate % textureSize, yCoordinate % textureSize);
+        int textureHeight = texture.getHeight();
+        int textureWidth = texture.getWidth();
+        int xCoordinate = (int)(textureWidth * textureCoordinates[0]);
+        int yCoordinate = (int)(textureHeight * (1 - textureCoordinates[1]));
+        return texture.getRGB(xCoordinate % textureWidth, yCoordinate % textureHeight);
     }
 
     private static void drawHorizontalLine(Scene scene, PolygonGroup polygonGroup, DrawMode drawMode, int x1, int x2, int y, Vertex3D left, Vertex3D right) {
@@ -237,16 +250,7 @@ public class Drawer {
             double t = (double) (x2 - x1) / width;
             Vertex3D v = new Vertex3D(0, 0, 0);
             vertexInterpolation(v, left, right, 1 - t);
-            if (x1 >= 0 && x1 < Constant.SCREEN_WIDTH && y >= 0 && y < Constant.SCREEN_HEIGHT && scene.zBuffer[y][x1] <= v.oneOverZ) {
-                double[] color = new double[]{1, 1, 1, 1};
-                // Base color
-                if (polygonGroup.getTexture() != null && drawMode.useTexture) {
-                    int textureColor = getTextureValue(polygonGroup.getTexture(), v.texture);
-                    color[0] *= ((textureColor >> 16) & 255) / 255.0;
-                    color[1] *= ((textureColor >> 8) & 255) / 255.0;
-                    color[2] *= (textureColor & 255) / 255.0;
-                }
-
+            if (x1 >= 0 && x1 < Constant.SCREEN_WIDTH && y >= 0 && y < Constant.SCREEN_HEIGHT && scene.zBuffer[y * Constant.SCREEN_WIDTH + x1] <= v.oneOverZ) {
                 double[] normal;
                 // Normal map
                 if (polygonGroup.getNormalMap() != null && drawMode.useNormalMap) {
@@ -264,18 +268,38 @@ public class Drawer {
                     normal = v.normal;
                 }
 
+                double[] color = new double[]{1, 1, 1, 1};
+                // Base color
+                if (polygonGroup.getTexture() != null && drawMode.useTexture) {
+                    int textureColor = getTextureValue(polygonGroup.getTexture(), v.texture);
+                    color[0] *= ((textureColor >> 16) & 255) / 255.0;
+                    color[1] *= ((textureColor >> 8) & 255) / 255.0;
+                    color[2] *= (textureColor & 255) / 255.0;
+                }
+
                 double reflection = scene.light.ks;
                 // Reflection map
                 if (polygonGroup.getReflectionMap() != null && drawMode.useReflectionMap) {
                     int reflectionValue = getTextureValue(polygonGroup.getReflectionMap(), v.texture);
-                    reflection = (reflectionValue & 255) / 255.0 * 5;
+                    reflection = (reflectionValue & 255) / 255.0;
                 }
 
                 // Lighting
-                if (drawMode.light == 0) {
-                    applyLambertianLighting(scene, normal, color);
-                } else {
-                    applyPhongLighting(scene, normal, color, reflection);
+                if (drawMode.useLighting) {
+                    if (drawMode.light == 0) {
+                        applyLambertianLighting(scene, normal, color);
+                    } else {
+                        // Skybox reflection
+                        double[] I = Vector4D.normalize(Vector4D.sub(v.model_pos, scene.camera.eye));
+                        double[] R = reflect(Vector4D.invert(I), normal);
+                        int reflectionColorInt = scene.skyBox.calculateReflection(R);
+                        double[] reflectionColor = {
+                                ((reflectionColorInt >> 16) & 255) / 255.0,
+                                ((reflectionColorInt >> 8) & 255) / 255.0,
+                                (reflectionColorInt & 255) / 255.0
+                        };
+                        applyPhongLighting(scene, normal, color, reflection, reflectionColor);
+                    }
                 }
 
                 color[0] = Math.min(color[0], 1);
@@ -284,8 +308,8 @@ public class Drawer {
 
                 Color rgb = new Color((float)color[0], (float)color[1], (float)color[2]);
 
-                scene.image.setRGB(x1, y, rgb.getRGB());
-                scene.zBuffer[y][x1] = v.oneOverZ;
+                scene.imageBuffer[y * Constant.SCREEN_WIDTH + x1] = rgb.getRGB();
+                scene.zBuffer[y * Constant.SCREEN_WIDTH + x1] = v.oneOverZ;
             }
 
             x1++;
@@ -402,5 +426,71 @@ public class Drawer {
         Graphics g = scene.image.getGraphics();
         g.setColor(new Color(color));
         g.drawOval(x, y, 4, 4);
+    }
+
+    public static void drawAxes(Scene scene) {
+        double[][] matrix = Matrix4D.getIdentity();
+        matrix = Matrix4D.multiply(
+                Matrix4D.getLookAt(
+                        new double[]{0, 0, 0, 1},
+                        scene.camera.target,
+                        scene.camera.up
+                ),
+                matrix
+        );
+
+        double[] xAxis = Matrix4D.multiplyVector(
+                matrix,
+                new double[]{1, 0, 0, 1}
+        );
+
+        double[] yAxis = Matrix4D.multiplyVector(
+                matrix,
+                new double[]{0, 1, 0, 1}
+        );
+
+        double[] zAxis = Matrix4D.multiplyVector(
+                matrix,
+                new double[]{0, 0, 1, 1}
+        );
+
+
+        // Draw polygon
+        Drawer.drawLineBresenham(scene,
+                Constant.SCREEN_WIDTH - 100,
+                Constant.SCREEN_HEIGHT - 120,
+                Constant.SCREEN_WIDTH - 100 + (int)(xAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(xAxis[1] * 60),
+                0xff0000);
+        Drawer.drawLineBresenham(scene,
+                Constant.SCREEN_WIDTH - 100,
+                Constant.SCREEN_HEIGHT - 120,
+                Constant.SCREEN_WIDTH - 100 + (int)(yAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(yAxis[1] * 60),
+                0x00ff00);
+        Drawer.drawLineBresenham(scene,
+                Constant.SCREEN_WIDTH - 100,
+                Constant.SCREEN_HEIGHT - 120,
+                Constant.SCREEN_WIDTH - 100 + (int)(zAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(zAxis[1] * 60),
+                0x0000ff);
+
+        Drawer.drawPoint(scene,
+                Constant.SCREEN_WIDTH - 100 + (int)(xAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(xAxis[1] * 60),
+                0xffffff);
+        Drawer.drawPoint(scene,
+                Constant.SCREEN_WIDTH - 100 + (int)(yAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(yAxis[1] * 60),
+                0xffffff);
+        Drawer.drawPoint(scene,
+                Constant.SCREEN_WIDTH - 100 + (int)(zAxis[0] * 60),
+                Constant.SCREEN_HEIGHT - 120 - (int)(zAxis[1] * 60),
+                0xffffff);
+
+        Drawer.drawPoint(scene,
+                Constant.SCREEN_WIDTH - 100,
+                Constant.SCREEN_HEIGHT - 120,
+                0xffffff);
     }
 }

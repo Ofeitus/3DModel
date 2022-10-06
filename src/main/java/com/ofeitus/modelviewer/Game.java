@@ -1,10 +1,7 @@
 package com.ofeitus.modelviewer;
 
 import com.ofeitus.modelviewer.constant.Constant;
-import com.ofeitus.modelviewer.graphics.DrawMode;
-import com.ofeitus.modelviewer.graphics.Drawer;
-import com.ofeitus.modelviewer.graphics.Light;
-import com.ofeitus.modelviewer.graphics.Scene;
+import com.ofeitus.modelviewer.graphics.*;
 import com.ofeitus.modelviewer.model.*;
 import com.ofeitus.modelviewer.util.Matrix4D;
 import com.ofeitus.modelviewer.util.Vector4D;
@@ -14,31 +11,31 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
 public class Game implements Runnable {
     private final List<Object3D> objects = new ArrayList<>();
-    private Scene scene = new Scene(
+    private final Scene scene = new Scene(
             new Camera(
-                new double[]{0, 100, 150, 1},
+                new double[]{0, 150, 200, 1},
                 new double[]{0, 0, -1, 1},
                 new double[]{0, 1, 0, 1}
             ),
             new Light(
                 new double[]{1, 1, 1, 1},
-                new double[]{100, 50, 100, 1},
+                new double[]{-100, 200, 100, 1},
                 0.1, 0.4, 0.8, 4
             ),
-            new double[Constant.SCREEN_HEIGHT][Constant.SCREEN_WIDTH]
+            new SkyBox("C:\\Users\\ofeitus\\Desktop\\labs\\models\\skybox\\skybox.jpg"),
+            new double[Constant.SCREEN_HEIGHT * Constant.SCREEN_WIDTH],
+            new BufferedImage(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, BufferedImage.TYPE_INT_RGB)
     );
     JFrame frame;
-    BufferedImage background;
     boolean[] keys = new boolean[1024];
     private boolean running = false;
-    private FpsCounter fpsCounter = new FpsCounter();
+    private final FpsCounter fpsCounter = new FpsCounter();
     private double rotationX = 0;
     private double rotationY = 0;
     private boolean useTexture = false;
@@ -50,12 +47,9 @@ public class Game implements Runnable {
         BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new Point(0, 0), "blank cursor");
 
-
         // Load objects
         ObjectLoader objectLoader = new ObjectLoader();
         try {
-            background = ImageIO.read(new File("C:\\Users\\ofeitus\\Desktop\\labs\\models\\background.jpg"));
-
             // Grid
             Object3D grid = new Object3D("Grid");
             PolygonGroup polygonGroup = new PolygonGroup("grid", null, null, null);
@@ -79,6 +73,7 @@ public class Game implements Runnable {
             objects.add(grid);
 
             objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\skull\\skull.obj"));
+            objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\impala\\impala.obj"));
             objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\cube\\cube.obj"));
 
             for (Object3D object : objects) {
@@ -160,48 +155,48 @@ public class Game implements Runnable {
         frame.setVisible(true);
     }
 
+
     private void drawImage() throws InterruptedException {
-        for (int i = 0; i < Constant.SCREEN_HEIGHT; i++) {
-            for (int j = 0; j < Constant.SCREEN_WIDTH; j++) {
-                scene.zBuffer[i][j] = 0;
-            }
-        }
-        scene.image = new BufferedImage(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        Arrays.fill(scene.zBuffer, 0);
         Graphics g = scene.image.getGraphics();
-        g.drawImage(background, 0, 0, Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, null, null);
+        scene.skyBox.draw(scene);
 
         // Draw grid
-        drawObject(objects.get(0), new DrawMode(
-                false,
-                1,
-                false,
-                false,
-                false,
-                false,
-                true,
-                0, 0, 0, 0, 0, 0, 1));
+        //drawObject(objects.get(0), new DrawMode(
+        //        false,
+        //        1,
+        //        true,
+        //        false,
+        //        false,
+        //        false,
+        //        false,
+        //        true,
+        //        0, 0, 0, 0, 0, 0, 1));
 
         // Draw objects
-        drawObject(objects.get(1), new DrawMode(
+        drawObject(objects.get(2), new DrawMode(
                 false,
                 1,
+                true,
                 true,
                 useTexture,
                 useNormalMap,
                 useReflectionMap,
                 false,
-                0, 80, 0, rotationX, rotationY, 0, 50));
-        //drawObject(objects.get(2), new DrawMode(
+                0, 80, 0, rotationX, rotationY, 0, 100));
+        //drawObject(objects.get(3), new DrawMode(
         //        false,
         //        1,
+        //        false,
         //        true,
         //        useTexture,
         //        useNormalMap,
         //        useReflectionMap,
         //        false,
-        //        60, 80, 0, rotationX, rotationY, 0, 50));
+        //        0, 100, 0, rotationX, rotationY, 0, 100));
 
-        drawAxes();
+        // Draw axes
+        Drawer.drawAxes(scene);
 
         // Draw info
         g.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 14));
@@ -220,72 +215,6 @@ public class Game implements Runnable {
                 String.format("%5.2f ", scene.camera.target[1]) +
                 String.format("%5.2f", scene.camera.target[2]), Constant.SCREEN_WIDTH - 213, Constant.SCREEN_HEIGHT - 35);
         g.drawString("fov: " + scene.camera.fov, Constant.SCREEN_WIDTH - 85, Constant.SCREEN_HEIGHT - 15);
-    }
-
-    private void drawAxes() {
-        double[][] matrix = Matrix4D.getIdentity();
-        matrix = Matrix4D.multiply(
-                Matrix4D.getLookAt(
-                        new double[]{0, 0, 0, 1},
-                        scene.camera.target,
-                        scene.camera.up
-                ),
-                matrix
-        );
-
-        double[] xAxis = Matrix4D.multiplyVector(
-                matrix,
-                new double[]{1, 0, 0, 1}
-        );
-
-        double[] yAxis = Matrix4D.multiplyVector(
-                matrix,
-                new double[]{0, 1, 0, 1}
-        );
-
-        double[] zAxis = Matrix4D.multiplyVector(
-                matrix,
-                new double[]{0, 0, 1, 1}
-        );
-
-
-        // Draw polygon
-        Drawer.drawLineBresenham(scene,
-                Constant.SCREEN_WIDTH - 100,
-                Constant.SCREEN_HEIGHT - 120,
-                Constant.SCREEN_WIDTH - 100 + (int)(xAxis[0] * 60),
-                Constant.SCREEN_HEIGHT - 120 - (int)(xAxis[1] * 60),
-                0xff0000);
-        Drawer.drawLineBresenham(scene,
-                Constant.SCREEN_WIDTH - 100,
-                Constant.SCREEN_HEIGHT - 120,
-                Constant.SCREEN_WIDTH - 100 + (int)(yAxis[0] * 60),
-                Constant.SCREEN_HEIGHT - 120 - (int)(yAxis[1] * 60),
-                0x00ff00);
-        Drawer.drawLineBresenham(scene,
-                Constant.SCREEN_WIDTH - 100,
-                Constant.SCREEN_HEIGHT - 120,
-                Constant.SCREEN_WIDTH - 100 + (int)(zAxis[0] * 60),
-                Constant.SCREEN_HEIGHT - 120 - (int)(zAxis[1] * 60),
-                0x0000ff);
-
-        Drawer.drawPoint(scene,
-                Constant.SCREEN_WIDTH - 100 + (int)(xAxis[0] * 60),
-                Constant.SCREEN_HEIGHT - 120 - (int)(xAxis[1] * 60),
-                0xffffff);
-        Drawer.drawPoint(scene,
-                Constant.SCREEN_WIDTH - 100 + (int)(yAxis[0] * 60),
-                Constant.SCREEN_HEIGHT - 120 - (int)(yAxis[1] * 60),
-                0xffffff);
-        Drawer.drawPoint(scene,
-                Constant.SCREEN_WIDTH - 100 + (int)(zAxis[0] * 60),
-                Constant.SCREEN_HEIGHT - 120 - (int)(zAxis[1] * 60),
-                0xffffff);
-
-        Drawer.drawPoint(scene,
-                Constant.SCREEN_WIDTH - 100,
-                Constant.SCREEN_HEIGHT - 120,
-                0xffffff);
     }
 
     private void drawObject(Object3D object, DrawMode drawMode) {
@@ -339,6 +268,10 @@ public class Game implements Runnable {
                                     viewProjectionMatrix,
                                     vectors.get(i).position
                             ),
+                            Matrix4D.multiplyVector(
+                                    drawMode.transformMatrix,
+                                    vectors.get(i).position
+                            ),
                             vectors.get(i).texture,
                             Matrix4D.multiplyVector(
                                     drawMode.transformMatrix,
@@ -366,10 +299,6 @@ public class Game implements Runnable {
     public synchronized void start() {
         new Thread(this).start();
         running = true;
-    }
-
-    public synchronized void stop() {
-        running = false;
     }
 
     void moveCamera(double delta) {

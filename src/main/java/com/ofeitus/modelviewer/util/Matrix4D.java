@@ -99,15 +99,6 @@ public class Matrix4D {
     }
 
     public static double[][] getRotation(double x, double y, double z) {
-        //x = Math.PI / 180 * x;
-        //y = Math.PI / 180 * y;
-        //z = Math.PI / 180 * z;
-        //return new double[][]{
-        //        {(cos(y) * cos(z)), (cos(z) * sin(y) * sin(x) - cos(x) * sin(z)), (cos(x) * cos(z) * sin(y) + sin(x) * sin(z)), 0},
-        //        {(cos(y) * sin(z)), (cos(x) * cos(z) + sin(y) * sin(x) * sin(z)), (cos(x) * sin(y) * sin(z) - cos(z) * sin(x)), 0},
-        //        {(-sin(y)), (cos(y) * sin(x)), (cos(y) * cos(x)), 0},
-        //        {0, 0, 0, 1}
-        //};
         return Matrix4D.multiply(Matrix4D.multiply(Matrix4D.getRotationY(y), Matrix4D.getRotationX(x)), Matrix4D.getRotationZ(z));
     }
 

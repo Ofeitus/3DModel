@@ -4,6 +4,7 @@ public class DrawMode {
     public boolean wireframe;
     public int light;
     public boolean faceCulling;
+    public boolean useLighting;
     public boolean useTexture;
     public boolean useNormalMap;
     public boolean useReflectionMap;
@@ -18,9 +19,10 @@ public class DrawMode {
     public double[][] rotationMatrix;
     public double[][] transformMatrix;
 
-    public DrawMode(boolean wireframe, int light, boolean faceCulling, boolean useTexture, boolean useNormalMap, boolean useReflectionMap, boolean line, double translateX, double translateY, double translateZ, double rotateX, double rotateY, double rotateZ, double scale) {
+    public DrawMode(boolean wireframe, int light, boolean useLighting, boolean faceCulling, boolean useTexture, boolean useNormalMap, boolean useReflectionMap, boolean line, double translateX, double translateY, double translateZ, double rotateX, double rotateY, double rotateZ, double scale) {
         this.wireframe = wireframe;
         this.light = light;
+        this.useLighting = useLighting;
         this.faceCulling = faceCulling;
         this.useTexture = useTexture;
         this.useNormalMap = useNormalMap;
