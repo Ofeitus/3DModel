@@ -225,7 +225,7 @@ public class Drawer {
                 eye
         );
 
-        specular = 6 * reflection * Math.pow(Math.max(specular, 0), light.shininess);
+        specular = reflection * (5 * Math.pow(Math.max(specular, 0), light.shininess) + 0.25);
 
         color[0] += specular * reflectionColor[0];
         color[1] += specular * reflectionColor[1];
@@ -275,7 +275,9 @@ public class Drawer {
                     color[0] *= ((textureColor >> 16) & 255) / 255.0;
                     color[1] *= ((textureColor >> 8) & 255) / 255.0;
                     color[2] *= (textureColor & 255) / 255.0;
-                    scene.glowBuffer[y * Constant.SCREEN_WIDTH + x1] = getTextureValue(polygonGroup.getGlowMap(), v.texture);
+                    if (polygonGroup.getGlowMap() != null) {
+                        scene.glowBuffer[y * Constant.SCREEN_WIDTH + x1] = getTextureValue(polygonGroup.getGlowMap(), v.texture);
+                    }
                 }
 
                 double reflection = scene.light.ks;

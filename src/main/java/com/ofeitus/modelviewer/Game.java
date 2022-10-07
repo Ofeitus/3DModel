@@ -5,9 +5,7 @@ import com.ofeitus.modelviewer.graphics.*;
 import com.ofeitus.modelviewer.model.*;
 import com.ofeitus.modelviewer.util.Matrix4D;
 import com.ofeitus.modelviewer.util.Vector4D;
-import org.lwjgl.Sys;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -15,9 +13,13 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Game implements Runnable {
     private final List<Object3D> objects = new ArrayList<>();
+    private int displayedObject = 0;
     private final Scene scene = new Scene(
             new Camera(
                 new double[]{0, 150, 200, 1},
@@ -43,6 +45,7 @@ public class Game implements Runnable {
     private boolean useTexture = false;
     private boolean useNormalMap = false;
     private boolean useReflectionMap = false;
+    private final ExecutorService executor = Executors.newFixedThreadPool(10);;
 
     public Game() throws AWTException {
         // Invisible cursor
@@ -109,6 +112,9 @@ public class Game implements Runnable {
             @Override
             public void keyPressed(KeyEvent e) {
                 keys[e.getKeyCode()] = true;
+                if (e.getKeyCode() >= 49 && e.getKeyCode() <= 57) {
+                    displayedObject = e.getKeyCode() - 48;
+                }
                 if (e.getKeyChar() == 't') {
                     useTexture = !useTexture;
                 }
@@ -157,6 +163,8 @@ public class Game implements Runnable {
         frame.setSize(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT);
         frame.setResizable(false);
         frame.setLocationRelativeTo(null);
+        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+        frame.setUndecorated(true);
         frame.setVisible(true);
     }
 
@@ -168,38 +176,56 @@ public class Game implements Runnable {
         scene.skyBox.draw(scene);
 
         // Draw grid
-        //drawObject(objects.get(0), new DrawMode(
-        //        false,
-        //        1,
-        //        true,
-        //        false,
-        //        false,
-        //        false,
-        //        false,
-        //        true,
-        //        0, 0, 0, 0, 0, 0, 1));
+        if (displayedObject == 0) {
+            renderObject(objects.get(0), new DrawMode(
+                    false,
+                    1,
+                    true,
+                    false,
+                    false,
+                    false,
+                    false,
+                    true,
+                    0, 0, 0, 0, 0, 0, 1));
+        }
 
         // Draw objects
-        drawObject(objects.get(2), new DrawMode(
-                false,
-                1,
-                true,
-                true,
-                useTexture,
-                useNormalMap,
-                useReflectionMap,
-                false,
-                0, 80, 0, rotationX, rotationY, 0, 100));
-        //drawObject(objects.get(3), new DrawMode(
-        //        false,
-        //        1,
-        //        false,
-        //        true,
-        //        useTexture,
-        //        useNormalMap,
-        //        useReflectionMap,
-        //        false,
-        //        0, 100, 0, rotationX, rotationY, 0, 100));
+        if (displayedObject == 1) {
+            renderObject(objects.get(1), new DrawMode(
+                    false,
+                    1,
+                    true,
+                    true,
+                    useTexture,
+                    useNormalMap,
+                    useReflectionMap,
+                    false,
+                    0, 0, 0, rotationX, rotationY, 0, 50));
+        }
+        if (displayedObject == 2) {
+            renderObject(objects.get(2), new DrawMode(
+                    false,
+                    1,
+                    true,
+                    true,
+                    useTexture,
+                    useNormalMap,
+                    useReflectionMap,
+                    false,
+                    0, 0, 0, rotationX, rotationY, 0, 100));
+        }
+        if (displayedObject == 3) {
+            renderObject(objects.get(3), new DrawMode(
+                    false,
+                    1,
+                    true,
+                    true,
+                    useTexture,
+                    useNormalMap,
+                    useReflectionMap,
+                    false,
+                    0, 0, 0, rotationX, rotationY, 0, 50));
+        }
 
         // Glow effect
         if (Constant.GLOW) {
@@ -236,7 +262,7 @@ public class Game implements Runnable {
         g.drawString("fov: " + scene.camera.fov, Constant.SCREEN_WIDTH - 85, Constant.SCREEN_HEIGHT - 15);
     }
 
-    private void drawObject(Object3D object, DrawMode drawMode) {
+    private void renderObject(Object3D object, DrawMode drawMode) throws InterruptedException {
         double[][] matrix = Matrix4D.getIdentity();
         final double[][] viewProjectionMatrix;
         matrix = Matrix4D.multiply(
@@ -276,42 +302,51 @@ public class Game implements Runnable {
         );
         viewProjectionMatrix = matrix;
 
+        List<Callable<Void>> tasks = new ArrayList<>();
         for (PolygonGroup polygonGroup : object.getPolygonGroups()) {
-            polygonGroup.getPolygons().parallelStream().forEach(polygon -> {
-                List<Vertex3D> vectors = polygon.getVertices();
+            for (Polygon3D polygon : polygonGroup.getPolygons()) {
+                tasks.add(() -> {
+                    renderPolygon(polygonGroup, polygon, drawMode, viewProjectionMatrix);
+                    return null;
+                });
+            }
+        }
+        executor.invokeAll(tasks);
+    }
 
-                Vertex3D[] vertices = new Vertex3D[3];
-                for (int i = 0; i < 3; i++) {
-                    vertices[i] = new Vertex3D(
-                            Matrix4D.multiplyVector(
-                                    viewProjectionMatrix,
-                                    vectors.get(i).position
-                            ),
-                            Matrix4D.multiplyVector(
-                                    drawMode.transformMatrix,
-                                    vectors.get(i).position
-                            ),
-                            vectors.get(i).texture,
-                            Matrix4D.multiplyVector(
-                                    drawMode.transformMatrix,
-                                    drawMode.light == 0 ? polygon.getNormal() : vectors.get(i).normal
-                            )
-                    );
-                }
+    private void renderPolygon(PolygonGroup polygonGroup, Polygon3D polygon, DrawMode drawMode, double[][] matrix) {
+        List<Vertex3D> vectors = polygon.getVertices();
 
-                if (vertices[0].position[2] < 0 && vertices[1].position[2] < 0 && vertices[2].position[2] < 0) {
-                    // Draw polygon
-                    Drawer.drawTriangle(
-                            scene,
-                            polygonGroup,
-                            polygon,
-                            drawMode,
-                            vertices[0],
-                            vertices[1],
-                            vertices[2]
-                    );
-                }
-            });
+        Vertex3D[] vertices = new Vertex3D[3];
+        for (int i = 0; i < 3; i++) {
+            vertices[i] = new Vertex3D(
+                    Matrix4D.multiplyVector(
+                            matrix,
+                            vectors.get(i).position
+                    ),
+                    Matrix4D.multiplyVector(
+                            drawMode.transformMatrix,
+                            vectors.get(i).position
+                    ),
+                    vectors.get(i).texture,
+                    Matrix4D.multiplyVector(
+                            drawMode.transformMatrix,
+                            drawMode.light == 0 ? polygon.getNormal() : vectors.get(i).normal
+                    )
+            );
+        }
+
+        if (vertices[0].position[2] < 0 && vertices[1].position[2] < 0 && vertices[2].position[2] < 0) {
+            // Draw polygon
+            Drawer.drawTriangle(
+                    scene,
+                    polygonGroup,
+                    polygon,
+                    drawMode,
+                    vertices[0],
+                    vertices[1],
+                    vertices[2]
+            );
         }
     }
 

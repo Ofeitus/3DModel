@@ -102,8 +102,9 @@ public class SkyBox {
     }
 
     public void draw(Scene scene) {
-        double currentRotationX = asin(-scene.camera.target[1]);
-        double currentRotationY = -atan2(scene.camera.target[0], scene.camera.target[2]);
+        double[] target = scene.camera.target;
+        double currentRotationX = asin(-target[1]);
+        double currentRotationY = -atan2(target[0], target[2]);
         double sinRotationX = Math.sin(currentRotationX);
         double cosRotationX = Math.cos(currentRotationX);
         double sinRotationY = Math.sin(currentRotationY);
@@ -111,8 +112,8 @@ public class SkyBox {
         double tmpVecX;
         double tmpVecY;
         double tmpVecZ;
-        for (int y = 0; y < Constant.SCREEN_HEIGHT; y++) {
-            for (int x = 0; x < Constant.SCREEN_WIDTH; x++) {
+        for (int y = 0; y < Constant.SCREEN_HEIGHT; y += 2) {
+            for (int x = 0; x < Constant.SCREEN_WIDTH; x += 2) {
                 double vecX = rayVectors[x][y][0];
                 double vecY = rayVectors[x][y][1];
                 double vecZ = rayVectors[x][y][2];
@@ -129,13 +130,15 @@ public class SkyBox {
                 int iX = (int) ((vecX + 1) * ACCURACY_FACTOR);
                 int iY = (int) ((vecY + 1) * ACCURACY_FACTOR);
                 int iZ = (int) ((vecZ + 1) * ACCURACY_FACTOR);
-                // https://en.wikipedia.org/wiki/UV_mapping
                 double u = 0.5 + (atan2Table[iZ + iX * REQUIRED_SIZE] * INV_2PI);
                 double v = 0.5 - (asinTable[iY] * INV_PI);
                 int tx = (int) (skyboxImage.getWidth() * u);
                 int ty = (int) (skyboxImage.getHeight() * (1 - v));
                 int color = skyboxBuffer[ty * skyboxImage.getWidth() + tx];
                 scene.imageBuffer[y * Constant.SCREEN_WIDTH + x] = color;
+                scene.imageBuffer[(y + 1) * Constant.SCREEN_WIDTH + x] = color;
+                scene.imageBuffer[y * Constant.SCREEN_WIDTH + (x + 1)] = color;
+                scene.imageBuffer[(y + 1) * Constant.SCREEN_WIDTH + (x + 1)] = color;
             }
         }
     }
