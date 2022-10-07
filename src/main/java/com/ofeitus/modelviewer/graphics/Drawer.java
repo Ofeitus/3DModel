@@ -275,6 +275,7 @@ public class Drawer {
                     color[0] *= ((textureColor >> 16) & 255) / 255.0;
                     color[1] *= ((textureColor >> 8) & 255) / 255.0;
                     color[2] *= (textureColor & 255) / 255.0;
+                    scene.glowBuffer[y * Constant.SCREEN_WIDTH + x1] = getTextureValue(polygonGroup.getGlowMap(), v.texture);
                 }
 
                 double reflection = scene.light.ks;
@@ -422,6 +423,16 @@ public class Drawer {
         }
     }
 
+    public static void drawGlow(Graphics g, int x, int y, int radius, int color) {
+        color = color & 0xffffff;
+        int alpha = 128;
+        for (int i = 1; i < radius; i += 2) {
+            g.setColor(new Color((alpha << 24) + color, true));
+            g.drawOval(x - i / 2, y - i / 2, i, i);
+            alpha *= 0.7;
+        }
+    }
+
     public static void drawPoint(Scene scene, int x, int y, int color) {
         Graphics g = scene.image.getGraphics();
         g.setColor(new Color(color));
@@ -461,36 +472,36 @@ public class Drawer {
                 Constant.SCREEN_HEIGHT - 120,
                 Constant.SCREEN_WIDTH - 100 + (int)(xAxis[0] * 60),
                 Constant.SCREEN_HEIGHT - 120 - (int)(xAxis[1] * 60),
-                0xff0000);
+                0xffff0000);
         Drawer.drawLineBresenham(scene,
                 Constant.SCREEN_WIDTH - 100,
                 Constant.SCREEN_HEIGHT - 120,
                 Constant.SCREEN_WIDTH - 100 + (int)(yAxis[0] * 60),
                 Constant.SCREEN_HEIGHT - 120 - (int)(yAxis[1] * 60),
-                0x00ff00);
+                0xff00ff00);
         Drawer.drawLineBresenham(scene,
                 Constant.SCREEN_WIDTH - 100,
                 Constant.SCREEN_HEIGHT - 120,
                 Constant.SCREEN_WIDTH - 100 + (int)(zAxis[0] * 60),
                 Constant.SCREEN_HEIGHT - 120 - (int)(zAxis[1] * 60),
-                0x0000ff);
+                0xff0000ff);
 
         Drawer.drawPoint(scene,
                 Constant.SCREEN_WIDTH - 100 + (int)(xAxis[0] * 60),
                 Constant.SCREEN_HEIGHT - 120 - (int)(xAxis[1] * 60),
-                0xffffff);
+                0xffffffff);
         Drawer.drawPoint(scene,
                 Constant.SCREEN_WIDTH - 100 + (int)(yAxis[0] * 60),
                 Constant.SCREEN_HEIGHT - 120 - (int)(yAxis[1] * 60),
-                0xffffff);
+                0xffffffff);
         Drawer.drawPoint(scene,
                 Constant.SCREEN_WIDTH - 100 + (int)(zAxis[0] * 60),
                 Constant.SCREEN_HEIGHT - 120 - (int)(zAxis[1] * 60),
-                0xffffff);
+                0xffffffff);
 
         Drawer.drawPoint(scene,
                 Constant.SCREEN_WIDTH - 100,
                 Constant.SCREEN_HEIGHT - 120,
-                0xffffff);
+                0xffffffff);
     }
 }

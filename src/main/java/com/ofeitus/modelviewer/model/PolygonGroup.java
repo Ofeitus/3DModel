@@ -10,12 +10,14 @@ public class PolygonGroup {
     private BufferedImage texture;
     private BufferedImage normalMap;
     private BufferedImage reflectionMap;
+    private BufferedImage glowMap;
 
-    public PolygonGroup(String name, BufferedImage texture, BufferedImage normalMap, BufferedImage reflectionMap) {
+    public PolygonGroup(String name) {
         this.name = name;
-        this.texture = texture;
-        this.normalMap = normalMap;
-        this.reflectionMap = reflectionMap;
+        this.texture = null;
+        this.normalMap = null;
+        this.reflectionMap = null;
+        this.glowMap = null;
         polygons = new ArrayList<>();
     }
 
@@ -39,6 +41,10 @@ public class PolygonGroup {
         return reflectionMap;
     }
 
+    public BufferedImage getGlowMap() {
+        return glowMap;
+    }
+
     public void setTexture(BufferedImage texture) {
         this.texture = texture;
     }
@@ -49,6 +55,10 @@ public class PolygonGroup {
 
     public void setReflectionMap(BufferedImage reflectionMap) {
         this.reflectionMap = reflectionMap;
+    }
+
+    public void setGlowMap(BufferedImage glowMap) {
+        this.glowMap = glowMap;
     }
 
     public List<Polygon3D> getPolygons() {

@@ -5,6 +5,7 @@ import com.ofeitus.modelviewer.graphics.*;
 import com.ofeitus.modelviewer.model.*;
 import com.ofeitus.modelviewer.util.Matrix4D;
 import com.ofeitus.modelviewer.util.Vector4D;
+import org.lwjgl.Sys;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -30,7 +31,8 @@ public class Game implements Runnable {
             ),
             new SkyBox("C:\\Users\\ofeitus\\Desktop\\labs\\models\\skybox\\skybox.jpg"),
             new double[Constant.SCREEN_HEIGHT * Constant.SCREEN_WIDTH],
-            new BufferedImage(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, BufferedImage.TYPE_INT_RGB)
+            new int[Constant.SCREEN_HEIGHT * Constant.SCREEN_WIDTH],
+            new BufferedImage(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, BufferedImage.TYPE_INT_ARGB)
     );
     JFrame frame;
     boolean[] keys = new boolean[1024];
@@ -52,7 +54,7 @@ public class Game implements Runnable {
         try {
             // Grid
             Object3D grid = new Object3D("Grid");
-            PolygonGroup polygonGroup = new PolygonGroup("grid", null, null, null);
+            PolygonGroup polygonGroup = new PolygonGroup("grid");
             for (int i = -10; i <= 10; i++) {
                 List<Vertex3D> vertices = new ArrayList<>();
                 vertices.add(new Vertex3D(i * 10.0, 0, -100));
@@ -119,6 +121,9 @@ public class Game implements Runnable {
                 if (e.getKeyChar() == 'i') {
                     Constant.INTERPOLATION = !Constant.INTERPOLATION;
                 }
+                if (e.getKeyChar() == 'e') {
+                    Constant.GLOW = !Constant.GLOW;
+                }
             }
 
             @Override
@@ -158,6 +163,7 @@ public class Game implements Runnable {
 
     private void drawImage() throws InterruptedException {
         Arrays.fill(scene.zBuffer, 0);
+        Arrays.fill(scene.glowBuffer, 0xff000000);
         Graphics g = scene.image.getGraphics();
         scene.skyBox.draw(scene);
 
@@ -194,6 +200,19 @@ public class Game implements Runnable {
         //        useReflectionMap,
         //        false,
         //        0, 100, 0, rotationX, rotationY, 0, 100));
+
+        // Glow effect
+        if (Constant.GLOW) {
+            for (int y = 0; y < Constant.SCREEN_HEIGHT; y++) {
+                for (int x = 0; x < Constant.SCREEN_WIDTH; x++) {
+                    if (scene.glowBuffer[y * Constant.SCREEN_WIDTH + x] != 0xff000000 && (x + y) % 2 == 0) {
+                        Drawer.drawGlow(g, x, y,
+                                20,
+                                scene.glowBuffer[y * Constant.SCREEN_WIDTH + x]);
+                    }
+                }
+            }
+        }
 
         // Draw axes
         Drawer.drawAxes(scene);

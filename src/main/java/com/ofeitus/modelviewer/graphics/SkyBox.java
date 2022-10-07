@@ -27,7 +27,7 @@ public class SkyBox {
     public SkyBox(String path) {
         try {
             BufferedImage sphereTmpImage = ImageIO.read(new File(path));
-            skyboxImage = new BufferedImage(sphereTmpImage.getWidth(), sphereTmpImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+            skyboxImage = new BufferedImage(sphereTmpImage.getWidth(), sphereTmpImage.getHeight(), BufferedImage.TYPE_INT_ARGB);
             skyboxImage.getGraphics().drawImage(sphereTmpImage, 0, 0, null);
             skyboxBuffer = ((DataBufferInt) skyboxImage.getRaster().getDataBuffer()).getData();
         } catch (IOException ex) {

@@ -32,7 +32,7 @@ public class ObjectLoader {
         vertices.clear();
         textures.clear();
         normals.clear();
-        currentGroup = new PolygonGroup("Default group", null, null, null);
+        currentGroup = new PolygonGroup("Default group");
         object.addPolygonGroup(currentGroup);
         parseFile(model);
         return object;
@@ -143,9 +143,9 @@ public class ObjectLoader {
                     // define the current group
                     if (tokenizer.hasMoreTokens()) {
                         String name = tokenizer.nextToken();
-                        currentGroup = new PolygonGroup(name, null, null, null);
+                        currentGroup = new PolygonGroup(name);
                     } else {
-                        currentGroup = new PolygonGroup("", null, null, null);
+                        currentGroup = new PolygonGroup("");
                     }
                     object.addPolygonGroup(currentGroup);
                     break;
@@ -160,6 +160,9 @@ public class ObjectLoader {
                     File[] reflectionFiles = root.listFiles((dir, name) -> name.startsWith(materialName + "_reflection"));
                     if (reflectionFiles != null && reflectionFiles.length > 0)
                         currentGroup.setReflectionMap(ImageIO.read(reflectionFiles[0]));
+                    File[] glowFiles = root.listFiles((dir, name) -> name.startsWith(materialName + "_emissive"));
+                    if (glowFiles != null && glowFiles.length > 0)
+                        currentGroup.setGlowMap(ImageIO.read(glowFiles[0]));
                     break;
                 default:
                     // unknown command
