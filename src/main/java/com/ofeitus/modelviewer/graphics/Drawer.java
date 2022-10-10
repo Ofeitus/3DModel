@@ -7,7 +7,6 @@ import com.ofeitus.modelviewer.util.Vector4D;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.Arrays;
 
 public class Drawer {
     private static final double EPSILON = 0.000001d;

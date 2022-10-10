@@ -1,12 +1,12 @@
 package com.ofeitus.modelviewer.graphics;
 
 public class Light {
-    double[] color;
-    double[] position;
-    double ka;
-    double kd;
-    double ks;
-    int shininess;
+    public double[] color;
+    public double[] position;
+    public double ka;
+    public double kd;
+    public double ks;
+    public int shininess;
 
     public Light(double[] color, double[] position, double ka, double kd, double ks, int shininess) {
         this.color = color;

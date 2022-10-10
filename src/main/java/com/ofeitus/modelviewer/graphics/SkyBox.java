@@ -14,8 +14,6 @@ import static java.lang.Math.atan2;
 public class SkyBox {
     private BufferedImage skyboxImage;
     private int[] skyboxBuffer;
-    private static final double FOV = Math.toRadians(90);
-    private final double cameraPlaneDistance;
     private double[][][] rayVectors;
     private static final double ACCURACY_FACTOR = 2048;
     private static final int REQUIRED_SIZE = (int) (2 * ACCURACY_FACTOR);
@@ -34,18 +32,17 @@ public class SkyBox {
             ex.printStackTrace();
             System.exit(-1);
         }
-        cameraPlaneDistance = ((double) Constant.SCREEN_WIDTH / 2) / Math.tan(FOV / 2);
-        createRayVecs();
+        createRayVectors(90);
         precalculateAsinAtan2();
     }
 
-    private void createRayVecs() {
+    public void createRayVectors(double fov) {
         rayVectors = new double[Constant.SCREEN_WIDTH][Constant.SCREEN_HEIGHT][3]; // x, y, z
         for (int y = 0; y < Constant.SCREEN_HEIGHT; y++) {
             for (int x = 0; x < Constant.SCREEN_WIDTH; x++) {
                 double vecX = x - (double) Constant.SCREEN_WIDTH / 2;
                 double vecY = y - (double) Constant.SCREEN_HEIGHT / 2;
-                double vecZ = cameraPlaneDistance;
+                double vecZ = ((double) Constant.SCREEN_WIDTH / 2) / Math.tan(Math.toRadians(fov) / 2);
                 double invVecLength = 1 / Math.sqrt(vecX * vecX + vecY * vecY + vecZ * vecZ);
                 rayVectors[x][y][0] = vecX * invVecLength;
                 rayVectors[x][y][1] = vecY * invVecLength;

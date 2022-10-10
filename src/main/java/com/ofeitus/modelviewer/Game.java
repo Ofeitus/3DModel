@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Game implements Runnable {
+    private final String rootDirectory = "C:\\Users\\ofeitus\\Desktop\\labs\\";
     private final List<Object3D> objects = new ArrayList<>();
     private int displayedObject = 0;
     private final Scene scene = new Scene(
@@ -31,7 +32,7 @@ public class Game implements Runnable {
                 new double[]{-100, 200, 100, 1},
                 0.1, 0.4, 0.8, 4
             ),
-            new SkyBox("C:\\Users\\ofeitus\\Desktop\\labs\\models\\skybox\\skybox.jpg"),
+            new SkyBox(rootDirectory + "models\\skybox\\skybox.jpg"),
             new double[Constant.SCREEN_HEIGHT * Constant.SCREEN_WIDTH],
             new int[Constant.SCREEN_HEIGHT * Constant.SCREEN_WIDTH],
             new BufferedImage(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT, BufferedImage.TYPE_INT_ARGB)
@@ -45,7 +46,7 @@ public class Game implements Runnable {
     private boolean useTexture = false;
     private boolean useNormalMap = false;
     private boolean useReflectionMap = false;
-    private final ExecutorService executor = Executors.newFixedThreadPool(10);;
+    private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
     public Game() throws AWTException {
         // Invisible cursor
@@ -77,9 +78,9 @@ public class Game implements Runnable {
             grid.addPolygonGroup(polygonGroup);
             objects.add(grid);
 
-            objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\skull\\skull.obj"));
-            objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\impala\\impala.obj"));
-            objects.add(objectLoader.loadObject("C:\\Users\\ofeitus\\Desktop\\labs\\models\\cube\\cube.obj"));
+            objects.add(objectLoader.loadObject(rootDirectory + "models\\skull\\skull.obj"));
+            objects.add(objectLoader.loadObject(rootDirectory + "models\\impala\\impala.obj"));
+            objects.add(objectLoader.loadObject(rootDirectory + "models\\cube\\cube.obj"));
 
             for (Object3D object : objects) {
                 System.out.println(object);
@@ -130,6 +131,24 @@ public class Game implements Runnable {
                 if (e.getKeyChar() == 'e') {
                     Constant.GLOW = !Constant.GLOW;
                 }
+                if (e.getKeyChar() == ',') {
+                    scene.skyBox = new SkyBox(rootDirectory + "models\\skybox\\skybox.jpg");
+                    scene.skyBox.createRayVectors(scene.camera.fov);
+                }
+                if (e.getKeyChar() == '.') {
+                    scene.skyBox = new SkyBox(rootDirectory + "models\\skybox\\skybox_night.jpg");
+                    scene.skyBox.createRayVectors(scene.camera.fov);
+                }
+                if (e.getKeyChar() == ']') {
+                    scene.light.position[0] += 10;
+                }
+                if (e.getKeyChar() == '[') {
+                    scene.light.position[0] -= 10;
+                }
+                if (e.getKeyChar() == 'b') {
+                    scene.skyBox.createRayVectors(scene.camera.fov);
+                    Constant.SKYBOX = !Constant.SKYBOX;
+                }
             }
 
             @Override
@@ -157,6 +176,9 @@ public class Game implements Runnable {
                 scene.camera.fov = 1.0;
             if (scene.camera.fov >= 90.0)
                 scene.camera.fov = 90.0;
+            if (Constant.SKYBOX) {
+                scene.skyBox.createRayVectors(scene.camera.fov);
+            }
         });
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -173,7 +195,11 @@ public class Game implements Runnable {
         Arrays.fill(scene.zBuffer, 0);
         Arrays.fill(scene.glowBuffer, 0xff000000);
         Graphics g = scene.image.getGraphics();
-        scene.skyBox.draw(scene);
+        if (Constant.SKYBOX) {
+            scene.skyBox.draw(scene);
+        } else {
+            Arrays.fill(scene.imageBuffer, 0xff000000);
+        }
 
         // Draw grid
         if (displayedObject == 0) {
@@ -246,11 +272,13 @@ public class Game implements Runnable {
         // Draw info
         g.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 14));
         g.setColor(useTexture ? Color.GREEN : Color.RED);
-        g.drawString("textures: " + (useTexture ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 95);
+        g.drawString("textures: " + (useTexture ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 115);
         g.setColor(useNormalMap ? Color.GREEN : Color.RED);
-        g.drawString("normal map: " + (useNormalMap ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 75);
+        g.drawString("normal map: " + (useNormalMap ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 95);
         g.setColor(useReflectionMap ? Color.GREEN : Color.RED);
-        g.drawString("reflection map: " + (useReflectionMap ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 55);
+        g.drawString("reflection map: " + (useReflectionMap ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 75);
+        g.setColor(Constant.GLOW ? Color.GREEN : Color.RED);
+        g.drawString("emissive map: " + (Constant.GLOW ? "on" : "off"), 10, Constant.SCREEN_HEIGHT - 55);
         g.setColor(Constant.INTERPOLATION ? Color.GREEN : Color.RED);
         g.drawString("interpolation: " + (Constant.INTERPOLATION ? "perspective" : "affine"), 10, Constant.SCREEN_HEIGHT - 35);
         g.setColor(Color.WHITE);
