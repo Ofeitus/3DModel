@@ -18,7 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Game implements Runnable {
-    private final String rootDirectory = "C:\\Users\\ofeitus\\Desktop\\labs\\";
+    private final String rootDirectory = "";
     private final List<Object3D> objects = new ArrayList<>();
     private int displayedObject = 0;
     private final Scene scene = new Scene(
